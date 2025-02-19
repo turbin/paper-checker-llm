@@ -1,0 +1,27 @@
+# 排除flagged目录（用于存储Gradio上传的文件）
+flagged/
+
+# 排除output目录（用于存储分析结果）
+output/
+
+# Python相关文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 环境相关
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统相关
+.DS_Store
+Thumbs.db
