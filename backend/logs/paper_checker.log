@@ -1,0 +1,190 @@
+2025-02-23 14:12:30 - INFO - app - 启动Flask应用服务器
+2025-02-23 14:12:30 - INFO - app - 启动Flask应用服务器
+2025-02-23 14:13:04 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-02-23 14:13:04 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-02-23 14:13:04 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-02-23 14:13:04 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/promots/sunshine.ruler
+2025-02-23 14:13:04 - DEBUG - app - 已获取提示词模板
+2025-02-23 14:13:04 - DEBUG - app - 准备发送API请求
+2025-02-23 14:14:19 - ERROR - app - 处理文件时出错：HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11198a760>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 213, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: <urllib3.connection.HTTPSConnection object at 0x11198a760>: Failed to establish a new connection: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11198a760>: Failed to establish a new connection: [Errno 60] Operation timed out'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11198a760>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/backend/app.py", line 169, in check_paper_format
+    response = requests.post(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 694, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11198a760>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+2025-02-23 14:14:56 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-02-23 14:14:56 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-02-23 14:14:56 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-02-23 14:14:56 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/promots/sunshine.ruler
+2025-02-23 14:14:56 - DEBUG - app - 已获取提示词模板
+2025-02-23 14:14:56 - DEBUG - app - 准备发送API请求
+2025-02-23 14:16:11 - ERROR - app - 处理文件时出错：HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x1119641f0>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 213, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: <urllib3.connection.HTTPSConnection object at 0x1119641f0>: Failed to establish a new connection: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x1119641f0>: Failed to establish a new connection: [Errno 60] Operation timed out'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x1119641f0>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/backend/app.py", line 169, in check_paper_format
+    response = requests.post(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 694, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x1119641f0>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+2025-02-23 14:22:26 - INFO - app - 收到文件上传请求：document.zip, 使用模板：xmu
+2025-02-23 14:22:26 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-02-23 14:22:26 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-02-23 14:22:26 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/promots/xmu.ruler
+2025-02-23 14:22:26 - DEBUG - app - 已获取提示词模板
+2025-02-23 14:22:26 - DEBUG - app - 准备发送API请求
+2025-02-23 14:23:41 - ERROR - app - 处理文件时出错：HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x111964f40>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connection.py", line 213, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: <urllib3.connection.HTTPSConnection object at 0x111964f40>: Failed to establish a new connection: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+urllib3.exceptions.ProxyError: ('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x111964f40>: Failed to establish a new connection: [Errno 60] Operation timed out'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x111964f40>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/backend/app.py", line 169, in check_paper_format
+    response = requests.post(
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/yanbin/miniconda/envs/paper-llm-checker/lib/python3.9/site-packages/requests/adapters.py", line 694, in send
+    raise ProxyError(e, request=request)
+requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.siliconflow.cn', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by ProxyError('Unable to connect to proxy', NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x111964f40>: Failed to establish a new connection: [Errno 60] Operation timed out')))
+2025-02-23 14:24:19 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-02-23 14:24:19 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-02-23 14:24:19 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-02-23 14:24:19 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/promots/sunshine.ruler
+2025-02-23 14:24:19 - DEBUG - app - 已获取提示词模板
+2025-02-23 14:24:19 - DEBUG - app - 准备发送API请求
+2025-02-23 14:24:35 - INFO - app - 成功获取分析结果
+2025-02-23 14:24:35 - DEBUG - app - 分析结果已保存到文件：/Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/backend/output/format_analysis_result.txt
