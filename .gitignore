@@ -16,6 +16,8 @@ env/
 venv/
 ENV/
 *.last/
+backend/logs/
+
 
 # IDE相关
 .idea/

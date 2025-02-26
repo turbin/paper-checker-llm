@@ -126,8 +126,8 @@ def check_paper_format():
                 file.seek(0)  # 重置文件指针
         
         prefix = get_prompt(template)
+        # logger.debug('已获取提示词模板', str(prefix))
         logger.debug('已获取提示词模板')
-
         # 构建提示词
         prompt = prefix + f"""请分析以下论文格式信息，并判断是否符合学术论文规范：
         总段落数：{format_info['paragraphs']}
@@ -151,7 +151,7 @@ def check_paper_format():
                 {"role": "user", "content": prompt}
             ],
             "stream": False,
-            "max_tokens": 2048,
+            "max_tokens": 4096,
             "stop": [
                 "null"
             ],

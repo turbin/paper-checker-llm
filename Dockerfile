@@ -1,8 +1,6 @@
 # 使用Python基础镜像
 FROM python:3-slim-bullseye
 
-#3.13.2-slim-bullseye, 3.13-slim-bullseye, 3-slim-bullseye, slim-bullseye
-
 # 安装Node.js和Nginx
 RUN apt-get update && \
     apt-get install -y curl gnupg nginx && \
@@ -13,6 +11,7 @@ RUN apt-get update && \
 # 设置工作目录
 WORKDIR /app
 
+COPY .env /app/.env
 # 复制前端项目文件并构建
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
@@ -23,9 +22,10 @@ RUN npm run build
 # 切换回主工作目录
 WORKDIR /app
 
-# 复制后端项目文件
+# 复制后端项目文件和启动脚本
 COPY backend /app/backend
 COPY promots /app/promots
+
 
 # 安装Python依赖
 WORKDIR /app/backend
@@ -49,17 +49,14 @@ server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-# 创建启动脚本
-RUN echo '\
-#!/bin/bash\
-nginx\
-cd /app/backend && python app.py' > /app/start.sh && chmod +x /app/start.sh
+# 创建容器启动脚本
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
-EXPOSE 80 5300
+EXPOSE 80 5300 3000
 
-# 启动服务
-# CMD ["/app/start.sh"]
+# 设置启动命令
+CMD ["/app/docker-entrypoint.sh"]
