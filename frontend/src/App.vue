@@ -9,7 +9,11 @@
       <div class="form-container">
         <el-form :model="form" label-width="120px">
           <el-form-item label="论文格式模板">
-            <el-select v-model="form.template" placeholder="请选择论文格式模板">
+            <el-select 
+              v-model="form.template" 
+              placeholder="请选择论文格式模板"
+              :disabled="isProcessing"
+            >
               <el-option label="阳光学院论文格式" value="sunshine" />
               <el-option label="厦门大学论文格式" value="xmu" />
             </el-select>
@@ -24,16 +28,22 @@
               :on-error="handleError"
               :before-upload="beforeUpload"
               :on-remove="handleRemove"
+              :on-change="handleChange"
               :auto-upload="false"
               accept=".docx"
+              :disabled="isProcessing"
+              :limit="1"
+              :on-exceed="handleExceed"
+              :file-list="fileList"
             >
               <template #trigger>
-                <el-button type="primary">选择文件</el-button>
+                <el-button type="primary" :disabled="isProcessing || fileList.length >= 1">选择文件</el-button>
               </template>
               <el-button
                 class="ml-3"
                 type="success"
                 @click="submitUpload"
+                :disabled="!hasFile || !form.template || isProcessing"
               >
                 {{ isProcessing ? '处理中...' : '开始检查' }}
               </el-button>
@@ -49,17 +59,37 @@
       <div class="result-container">
         <h3>检查结果：</h3>
         <div v-if="result" v-html="renderResult(result)" class="result-content"></div>
+        <div v-else-if="errorInfo" class="error-result">
+          <h4>发生错误：</h4>
+          <p class="error-message">{{ errorInfo.error }}</p>
+          <p v-if="errorInfo.detail" class="error-detail">{{ errorInfo.detail }}</p>
+          <div v-if="errorInfo.code === 401" class="error-solution">
+            <p>可能的解决方案：</p>
+            <ul>
+              <li>检查 API 密钥是否正确</li>
+              <li>确认 API 密钥未过期</li>
+              <li>联系管理员重新配置 API 密钥</li>
+            </ul>
+          </div>
+        </div>
         <div v-else class="empty-result">
           <p>请选择论文格式模板并上传文件进行检查</p>
         </div>
       </div>
     </el-card>
+    
+    <!-- 全局加载状态 -->
+    <el-loading 
+      v-model:full-screen="fullscreenLoading" 
+      element-loading-text="正在分析论文格式，请稍候..."
+      :lock="true"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, watch } from 'vue'
+import { ElMessage, ElLoading } from 'element-plus'
 import axios from 'axios'
 import MarkdownIt from 'markdown-it'
 import JSZip from 'jszip'
@@ -72,26 +102,61 @@ const form = reactive({
 
 const hasFile = ref(false)
 const result = ref('')
+const errorInfo = ref(null)
 const upload = ref(null)
 const uploadProgress = ref(0)
 const isProcessing = ref(false)
+const fullscreenLoading = ref(false)
+const fileList = ref([])
 
 const progressFormat = (percentage) => {
   return percentage === 100 ? '处理中...' : `上传中 ${percentage}%`
 }
 
+// 处理超出文件数量限制
+const handleExceed = (files) => {
+  ElMessage.warning('最多只能上传一份论文文件')
+}
+
+// 检查文件是否已存在
+const isFileExist = (file) => {
+  const fileName = file.name
+  return fileList.value.some(item => item.name === fileName)
+}
+
 const beforeUpload = (file) => {
+  // 检查文件类型
   const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   if (!isDocx) {
     ElMessage.error('只能上传 .docx 格式的文件！')
     return false
   }
-  hasFile.value = true
+  
+  // 检查文件是否已存在
+  if (isFileExist(file)) {
+    ElMessage.warning(`文件 "${file.name}" 已存在，请勿重复添加`)
+    return false
+  }
+  
+  // 检查文件数量
+  if (fileList.value.length >= 1) {
+    ElMessage.warning('最多只能上传一份论文文件')
+    return false
+  }
+  
   return true
 }
 
-const handleRemove = () => {
-  hasFile.value = false
+const handleChange = (file, fileList) => {
+  hasFile.value = fileList.length > 0
+  // 更新文件列表
+  fileList.value = fileList
+}
+
+const handleRemove = (file, fileList) => {
+  hasFile.value = fileList.length > 0
+  // 更新文件列表
+  fileList.value = fileList
   uploadProgress.value = 0
 }
 
@@ -100,6 +165,16 @@ const submitUpload = () => {
     ElMessage.error('请选择论文格式模板！')
     return
   }
+  
+  if (!hasFile.value) {
+    ElMessage.error('请先选择文件！')
+    return
+  }
+  
+  // 重置错误信息
+  errorInfo.value = null
+  result.value = ''
+  
   upload.value.submit()
 }
 
@@ -107,6 +182,8 @@ const customUpload = async (options) => {
   const { file } = options
   try {
     isProcessing.value = true
+    fullscreenLoading.value = true
+    
     // 检查文件大小
     if (file.size === 0) {
       throw new Error('文件内容为空，请检查文件是否有效')
@@ -151,34 +228,92 @@ const customUpload = async (options) => {
     formData.append('file', new File([zipBlob], 'document.zip', { type: 'application/zip' }))
     formData.append('template', form.template)
 
-    const response = await axios.post('/api/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress: (progressEvent) => {
-        uploadProgress.value = Math.round(
-          (progressEvent.loaded * 100) / progressEvent.total
-        )
-      }
-    })
-    handleSuccess(response.data)
+    try {
+      const response = await axios.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          uploadProgress.value = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          )
+        }
+      })
+      handleSuccess(response.data)
+    } catch (error) {
+      handleApiError(error)
+    }
   } catch (error) {
     isProcessing.value = false
+    fullscreenLoading.value = false
     ElMessage.error(error.message || '上传失败，请重试')
+  }
+}
+
+const handleApiError = (error) => {
+  isProcessing.value = false
+  fullscreenLoading.value = false
+  uploadProgress.value = 0
+  
+  // 设置错误信息
+  if (error.response) {
+    // 服务器返回了错误响应
+    const { status, data } = error.response
+    
+    // 设置错误信息对象
+    errorInfo.value = {
+      error: data.error || `请求失败 (${status})`,
+      code: data.code || status,
+      detail: data.detail || '服务器返回了错误响应'
+    }
+    
+    // 根据状态码显示不同的错误消息
+    if (status === 401) {
+      ElMessage.error({
+        message: '认证失败：API密钥无效或已过期',
+        duration: 5000
+      })
+    } else if (status === 503 || status === 504) {
+      ElMessage.error({
+        message: '服务暂时不可用，请稍后重试',
+        duration: 5000
+      })
+    } else {
+      ElMessage.error({
+        message: data.error || '请求失败，请稍后重试',
+        duration: 5000
+      })
+    }
+  } else if (error.request) {
+    // 请求已发送但没有收到响应
+    errorInfo.value = {
+      error: '无法连接到服务器',
+      code: 0,
+      detail: '请求已发送，但未收到服务器响应，请检查网络连接'
+    }
+    ElMessage.error('无法连接到服务器，请检查网络连接')
+  } else {
+    // 请求设置时发生错误
+    errorInfo.value = {
+      error: error.message || '请求错误',
+      code: 0,
+      detail: '发送请求时出现错误'
+    }
+    ElMessage.error(error.message || '请求错误')
   }
 }
 
 const handleSuccess = (response) => {
   result.value = response.result
+  errorInfo.value = null
   ElMessage.success('检查完成')
   isProcessing.value = false
+  fullscreenLoading.value = false
   uploadProgress.value = 0
 }
 
-const handleError = () => {
-  ElMessage.error('上传失败，请重试')
-  isProcessing.value = false
-  uploadProgress.value = 0
+const handleError = (error) => {
+  handleApiError(error)
 }
 
 const renderResult = (text) => {
@@ -237,7 +372,49 @@ const renderResult = (text) => {
   padding-left: 1.5em;
 }
 
+.error-result {
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 4px;
+  border-left: 4px solid #f56c6c;
+  margin-top: 10px;
+}
+
+.error-message {
+  color: #f56c6c;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.error-detail {
+  color: #606266;
+  margin-bottom: 15px;
+}
+
+.error-solution {
+  background-color: #fef0f0;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.error-solution p {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.error-solution ul {
+  padding-left: 20px;
+  margin: 5px 0;
+}
+
 .ml-3 {
   margin-left: 12px;
 }
-</style>
+
+.empty-result {
+  text-align: center;
+  color: #909399;
+  padding: 20px;
+}
+</style> 

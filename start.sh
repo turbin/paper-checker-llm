@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # 检查conda是否安装
 if ! command -v conda &> /dev/null; then
@@ -16,22 +16,20 @@ fi
 eval "$(conda shell.bash hook)"
 conda activate paper-llm-checker
 
-# 启动后端服务（后台运行）
-cd backend
-pip install -r requirements.txt
-python app.py &
+# 启动后端服务
+echo "启动后端服务..."
+cd backend && pip install -r requirements.txt && python app.py &
 BACKEND_PID=$!
 
 # 等待后端服务启动
-sleep 3
+sleep 2
 
 # 启动前端服务
-cd ../frontend
-npm install
-npm run dev &
+echo "启动前端服务..."
+cd frontend && npm run dev &
 FRONTEND_PID=$!
 
-# 捕获SIGINT信号（Ctrl+C），清理子进程
+# 捕获 SIGINT 信号（Ctrl+C）
 cleanup() {
     echo "正在关闭服务..."
     kill $FRONTEND_PID
@@ -41,5 +39,5 @@ cleanup() {
 
 trap cleanup SIGINT
 
-# 等待子进程
+# 等待前台进程结束
 wait

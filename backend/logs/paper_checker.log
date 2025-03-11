@@ -188,3 +188,52 @@ requests.exceptions.ProxyError: HTTPSConnectionPool(host='api.siliconflow.cn', p
 2025-02-23 14:24:19 - DEBUG - app - 准备发送API请求
 2025-02-23 14:24:35 - INFO - app - 成功获取分析结果
 2025-02-23 14:24:35 - DEBUG - app - 分析结果已保存到文件：/Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-llm-checker/backend/output/format_analysis_result.txt
+2025-03-11 20:48:48 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:48:48 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:54:15 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:54:15 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:58:57 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:58:58 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:59:32 - INFO - app - 启动Flask应用服务器
+2025-03-11 20:59:57 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-03-11 20:59:57 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-03-11 20:59:57 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-03-11 20:59:57 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-checker-llm/promots/sunshine.ruler
+2025-03-11 20:59:57 - DEBUG - app - 已获取提示词模板
+2025-03-11 20:59:57 - DEBUG - app - 准备发送API请求
+2025-03-11 21:00:01 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-03-11 21:00:01 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-03-11 21:00:01 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-03-11 21:00:01 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-checker-llm/promots/sunshine.ruler
+2025-03-11 21:00:01 - DEBUG - app - 已获取提示词模板
+2025-03-11 21:00:01 - DEBUG - app - 准备发送API请求
+2025-03-11 21:00:03 - ERROR - app - API请求失败：401 - "Api key is invalid"
+2025-03-11 21:00:03 - ERROR - app - API请求失败：401 - "Api key is invalid"
+2025-03-11 21:05:06 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:07:40 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:08:17 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:08:34 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-03-11 21:08:34 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-03-11 21:08:34 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-03-11 21:08:34 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-checker-llm/promots/sunshine.ruler
+2025-03-11 21:08:34 - DEBUG - app - 已获取提示词模板
+2025-03-11 21:08:34 - DEBUG - app - 准备发送API请求
+2025-03-11 21:08:40 - ERROR - app - API请求失败：401 - "Api key is invalid"
+2025-03-11 21:15:10 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:22:31 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:25:53 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:26:13 - INFO - app - 收到文件上传请求：document.zip, 使用模板：sunshine
+2025-03-11 21:26:13 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-03-11 21:26:13 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-03-11 21:26:13 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-checker-llm/promots/sunshine.ruler
+2025-03-11 21:26:13 - DEBUG - app - 已获取提示词模板
+2025-03-11 21:26:13 - DEBUG - app - 准备发送API请求
+2025-03-11 21:26:20 - ERROR - app - API认证失败(401): API密钥无效或已过期
+2025-03-11 21:30:12 - INFO - app - 启动Flask应用服务器
+2025-03-11 21:30:47 - INFO - app - 收到文件上传请求：document.zip, 使用模板：xmu
+2025-03-11 21:30:47 - DEBUG - app - 找到docx文件：Large Language Models Are Reasoning Teachers.docx
+2025-03-11 21:30:47 - DEBUG - app - 提取到的格式信息：{'paragraphs': 94, 'sections': 1, 'styles': ['Heading 3', 'Heading 4', 'Normal'], 'fonts': {'宋体'}, 'spacing': [], 'headers': [], 'footers': []}
+2025-03-11 21:30:47 - DEBUG - app - 已加载模板文件 /Volumes/extern-1t-x5/Workspace/03-personal-repo/paper-checker-llm/promots/xmu.ruler
+2025-03-11 21:30:47 - DEBUG - app - 已获取提示词模板
+2025-03-11 21:30:47 - DEBUG - app - 准备发送API请求
+2025-03-11 21:30:50 - ERROR - app - API认证失败(401): API密钥无效或已过期

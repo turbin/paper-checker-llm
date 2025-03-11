@@ -1,62 +1,44 @@
-# 使用Python基础镜像
-FROM python:3-slim-bullseye
+FROM node:16-alpine AS frontend-builder
 
-# 安装Node.js和Nginx
-RUN apt-get update && \
-    apt-get install -y curl gnupg nginx && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.9-slim
+
+# 安装 Nginx
+RUN apt-get update && apt-get install -y nginx && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
 
-COPY .env /app/.env
-# 复制前端项目文件并构建
-COPY frontend/package*.json ./frontend/
-WORKDIR /app/frontend
-RUN npm install
-COPY frontend .
-RUN npm run build
+# 复制前端构建产物
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
-# 切换回主工作目录
-WORKDIR /app
+# 复制后端代码
+COPY backend/ /app/backend/
+COPY promots/ /app/promots/
 
-# 复制后端项目文件和启动脚本
-COPY backend /app/backend
-COPY promots /app/promots
+# 安装后端依赖
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
+# 复制 Nginx 配置文件
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 安装Python依赖
-WORKDIR /app/backend
-RUN pip install -r requirements.txt
+# 复制启动脚本
+COPY docker-entry.sh /app/docker-entry.sh
+RUN chmod +x /app/docker-entry.sh
 
-# 复制前端构建产物到Nginx目录
-RUN cp -r /app/frontend/dist/* /usr/share/nginx/html/
+# 创建必要的目录
+RUN mkdir -p /app/backend/logs /app/backend/output
 
-# 配置Nginx
-RUN echo '\
-server { \
-    listen 80; \
-    location / { \
-        root /usr/share/nginx/html; \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /api { \
-        proxy_pass http://localhost:5300; \
-        proxy_set_header Host $host; \
-        proxy_set_header X-Real-IP $remote_addr; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
-
-# 创建容器启动脚本
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+# 暴露端口
+EXPOSE 80
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1
 
-# 暴露端口
-EXPOSE 80 5300 3000
-
-# 设置启动命令
-CMD ["/app/docker-entrypoint.sh"]
+# 启动服务
+CMD ["/app/docker-entry.sh"]

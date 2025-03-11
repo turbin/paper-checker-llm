@@ -166,41 +166,109 @@ def check_paper_format():
         }
         
         # 发送API请求
-        response = requests.post(
-            f"{API_BASE}/chat/completions",
-            headers=headers,
-            json=data
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            analysis = result['choices'][0]['message']['content']
-            logger.info('成功获取分析结果')
+        try:
+            response = requests.post(
+                f"{API_BASE}/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=60  # 设置超时时间为60秒
+            )
             
-            # 定义结果文件路径
-            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
-            os.makedirs(output_dir, exist_ok=True)
-            result_file = os.path.join(output_dir, 'format_analysis_result.txt')
-            
-            # 如果文件存在则删除
-            if os.path.exists(result_file):
-                os.remove(result_file)
-            
-            # 创建新文件并写入分析结果
-            with open(result_file, 'w', encoding='utf-8') as f:
-                f.write(analysis)
-            logger.debug(f'分析结果已保存到文件：{result_file}')
-            
-            return jsonify({'result': analysis})
-        else:
-            error_msg = f"API请求失败：{response.status_code} - {response.text}"
+            # 检查API响应状态码
+            if response.status_code == 200:
+                result = response.json()
+                analysis = result['choices'][0]['message']['content']
+                logger.info('成功获取分析结果')
+                
+                # 定义结果文件路径
+                output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
+                os.makedirs(output_dir, exist_ok=True)
+                result_file = os.path.join(output_dir, 'format_analysis_result.txt')
+                
+                # 如果文件存在则删除
+                if os.path.exists(result_file):
+                    os.remove(result_file)
+                
+                # 创建新文件并写入分析结果
+                with open(result_file, 'w', encoding='utf-8') as f:
+                    f.write(analysis)
+                logger.debug(f'分析结果已保存到文件：{result_file}')
+                
+                return jsonify({'result': analysis})
+            elif response.status_code == 401:
+                # 处理401未授权错误
+                error_detail = "API密钥无效或已过期"
+                try:
+                    error_json = response.json()
+                    if 'error' in error_json:
+                        if isinstance(error_json['error'], dict) and 'message' in error_json['error']:
+                            error_detail = error_json['error']['message']
+                        elif isinstance(error_json['error'], str):
+                            error_detail = error_json['error']
+                except:
+                    pass
+                
+                error_msg = f"API认证失败(401): {error_detail}"
+                logger.error(error_msg)
+                return jsonify({
+                    'error': error_msg,
+                    'code': 401,
+                    'detail': '请检查API密钥是否有效，或联系管理员解决授权问题'
+                }), 401
+            else:
+                # 处理其他错误
+                error_detail = response.text
+                try:
+                    error_json = response.json()
+                    if 'error' in error_json:
+                        if isinstance(error_json['error'], dict) and 'message' in error_json['error']:
+                            error_detail = error_json['error']['message']
+                        elif isinstance(error_json['error'], str):
+                            error_detail = error_json['error']
+                except:
+                    pass
+                
+                error_msg = f"API请求失败({response.status_code}): {error_detail}"
+                logger.error(error_msg)
+                return jsonify({
+                    'error': error_msg,
+                    'code': response.status_code,
+                    'detail': '请求远程服务失败，请稍后重试或联系管理员'
+                }), response.status_code
+                
+        except requests.exceptions.Timeout:
+            error_msg = "API请求超时"
             logger.error(error_msg)
-            return jsonify({'error': error_msg}), 500
-        
+            return jsonify({
+                'error': error_msg,
+                'code': 504,
+                'detail': '远程服务响应超时，请稍后重试'
+            }), 504
+        except requests.exceptions.ConnectionError:
+            error_msg = "无法连接到API服务"
+            logger.error(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'code': 503,
+                'detail': '无法连接到远程服务，请检查网络连接或联系管理员'
+            }), 503
+        except Exception as e:
+            error_msg = f"API请求异常: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return jsonify({
+                'error': error_msg,
+                'code': 500,
+                'detail': '请求处理过程中发生异常，请联系管理员'
+            }), 500
+            
     except Exception as e:
-        error_msg = f"处理文件时出错：{str(e)}"
+        error_msg = f"处理文件时出错: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        return jsonify({'error': error_msg}), 500
+        return jsonify({
+            'error': error_msg,
+            'code': 500,
+            'detail': '文件处理过程中发生异常，请检查文件格式或联系管理员'
+        }), 500
 
 if __name__ == "__main__":
     logger.info('启动Flask应用服务器')
