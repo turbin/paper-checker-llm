@@ -1,6 +1,7 @@
-gradio==4.7.1
+gradio==4.19.2
 python-docx==1.0.1
-torch>=2.0.0
-transformers>=4.34.0
-python-dotenv==1.0.0
-requests>=2.31.0
+python-dotenv==1.0.1
+requests==2.31.0
+# 可选依赖项，如果需要使用本地模型
+# torch>=2.2.0
+# transformers>=4.38.0

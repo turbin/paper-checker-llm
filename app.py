@@ -224,7 +224,7 @@ def check_paper_format(file):
 demo = gr.Interface(
     fn=check_paper_format,
     inputs=gr.File(label="上传论文", file_types=[".docx"]),
-    outputs=gr.Markdown(label="分析结果", autoscroll=True, elem_classes="scrollable-output", height=500),
+    outputs=gr.Markdown(label="分析结果", elem_classes="scrollable-output"),
     title="论文格式检查工具",
     description="请上传您的论文文件（.docx格式），系统将自动检查格式是否规范。",
     layout="vertical",

@@ -11,7 +11,42 @@
 
 ## 部署方法
 
-### 使用Docker部署（推荐）
+### 使用Conda环境（推荐）
+
+1. 确保已安装Miniconda或Anaconda
+2. 克隆项目到本地：
+   ```bash
+   git clone [项目地址]
+   cd paper-checker-llm
+   ```
+3. 使用提供的脚本创建和管理conda环境：
+
+   **Linux/macOS用户**：
+   ```bash
+   # 添加执行权限
+   chmod +x setup_conda.sh
+   # 运行脚本
+   ./setup_conda.sh
+   ```
+
+   **Windows用户**：
+   ```
+   # 直接双击运行setup_conda.bat或在命令提示符中运行
+   setup_conda.bat
+   ```
+
+4. 在脚本菜单中选择"1"创建新的conda环境
+5. 创建完成后，选择"2"激活环境
+6. 创建.env文件并配置以下环境变量：
+   ```
+   OPENAI_API_KEY=你的OpenAI API密钥
+   OPENAI_API_BASE=你的API基础URL
+   MODEL_NAME=你要使用的模型名称
+   ```
+7. 选择"6"启动应用
+8. 访问 http://localhost:7860 即可使用
+
+### 使用Docker部署
 
 1. 确保已安装Docker
 2. 克隆项目到本地：
@@ -35,7 +70,7 @@
    ```
 6. 访问 http://localhost:7860 即可使用
 
-### 本地部署
+### 本地直接部署
 
 1. 确保安装Python 3.9或更高版本
 2. 克隆项目并进入目录：
@@ -61,6 +96,22 @@
 3. 等待系统分析完成
 4. 查看分析结果，根据建议修改论文格式
 
+## Conda环境管理
+
+项目提供了两个脚本来管理conda环境：
+
+- `setup_conda.sh`：Linux和macOS用户使用
+- `setup_conda.bat`：Windows用户使用
+
+这些脚本提供以下功能：
+
+1. **创建新的conda环境**：根据environment.yml文件创建名为paper-checker的环境
+2. **激活conda环境**：提供激活环境的命令或直接打开新的已激活环境的终端
+3. **更新conda环境**：根据environment.yml文件更新环境依赖
+4. **删除conda环境**：删除名为paper-checker的环境
+5. **列出所有conda环境**：显示系统中所有可用的conda环境
+6. **启动应用**：在当前环境中启动论文格式检查工具
+
 ## 注意事项
 
 - 仅支持.docx格式的文件
@@ -75,6 +126,7 @@
 - python-docx
 - OpenAI API
 - Docker
+- Conda
 
 ## 许可证
 
