@@ -1,4 +1,4 @@
-FROM node:16-alpine AS frontend-builder
+FROM node:18.20.7-bullseye AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
@@ -21,6 +21,7 @@ COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 COPY backend/ /app/backend/
 COPY promots/ /app/promots/
 
+
 # 安装后端依赖
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
@@ -28,8 +29,8 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # 复制启动脚本
-COPY docker-entry.sh /app/docker-entry.sh
-RUN chmod +x /app/docker-entry.sh
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # 创建必要的目录
 RUN mkdir -p /app/backend/logs /app/backend/output
@@ -40,5 +41,10 @@ EXPOSE 80
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1
 
-# 启动服务
-CMD ["/app/docker-entry.sh"]
+# 注意：.env文件应在构建时通过--build-arg或在运行时通过-v挂载到容器中
+# 例如: docker run -v $(pwd)/.env:/app/.env ...
+
+# 使用docker-entrypoint.sh作为入口点
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# 默认无参数启动
+CMD []

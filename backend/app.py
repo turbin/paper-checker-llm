@@ -153,7 +153,7 @@ def check_paper_format():
             "stream": False,
             "max_tokens": 4096,
             "stop": None,
-            "temperature": 0.7,
+            "temperature": 0.1,
             "top_p": 0.7,
             "top_k": 50,
             "frequency_penalty": 0.5,
@@ -272,4 +272,4 @@ def check_paper_format():
 
 if __name__ == "__main__":
     logger.info('启动Flask应用服务器')
-    app.run(host='127.0.0.1', port=5300, debug=True)
+    app.run(host='0.0.0.0', port=5300, debug=True)

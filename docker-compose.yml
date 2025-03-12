@@ -7,11 +7,22 @@ services:
       dockerfile: Dockerfile
     container_name: paper-checker
     ports:
-      - "8080:80"
+      - "8080:80"  # 将容器的80端口映射到主机的8080端口
     volumes:
-      - ./.env:/app/.env
-      - ./backend/logs:/app/backend/logs
-      - ./backend/output:/app/backend/output
+      - ./.env:/app/.env:ro  # 挂载.env文件 (只读模式)
+      - ./backend/logs:/app/backend/logs  # 挂载日志目录
+      - ./backend/output:/app/backend/output  # 挂载输出目录
+      - ./promots:/app/promots  # 挂载模板目录
     restart: unless-stopped
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=Asia/Shanghai  # 设置时区
+      # 您也可以在这里直接设置环境变量，它们会覆盖.env文件中的同名变量
+      # - OPENAI_API_KEY=your_api_key_here
+      # 注意：.env文件中的每一行必须是 KEY=VALUE 格式，不要有单独的URL或不符合格式的内容
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
