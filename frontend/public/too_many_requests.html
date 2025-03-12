@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>请求队列已满 - 论文格式检查</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f5f7fa;
+            color: #303133;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .icon {
+            font-size: 64px;
+            color: #e6a23c;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #e6a23c;
+        }
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #606266;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #409eff;
+            color: #fff;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #66b1ff;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f9eb;
+            border-radius: 4px;
+            color: #67c23a;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .status.busy {
+            background-color: #fef0f0;
+            color: #f56c6c;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-dot.available {
+            background-color: #67c23a;
+        }
+        .status-dot.busy {
+            background-color: #f56c6c;
+        }
+        .timer {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #909399;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⏱️</div>
+        <h1>请求队列已满</h1>
+        <p>当前系统正在处理其他用户的请求，请稍后再试。</p>
+        <p>我们的系统限制同时处理最多4个请求，以确保每个请求都能得到足够的资源处理。</p>
+        
+        <div id="status" class="status busy">
+            <span class="status-dot busy"></span>
+            <span>队列繁忙 (4/4)</span>
+        </div>
+        
+        <div class="timer">
+            <span>页面将在 <span id="countdown">30</span> 秒后自动刷新</span>
+        </div>
+        
+        <a href="/" class="button" id="refresh-btn">立即刷新</a>
+    </div>
+
+    <script>
+        // 倒计时自动刷新
+        let countdown = 30;
+        const countdownEl = document.getElementById('countdown');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const statusEl = document.getElementById('status');
+        
+        // 定时检查队列状态
+        async function checkQueueStatus() {
+            try {
+                const response = await fetch('/api/queue-status');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 更新状态显示
+                    const statusDot = statusEl.querySelector('.status-dot');
+                    const statusText = statusEl.querySelector('span:last-child');
+                    
+                    if (data.queue_available) {
+                        statusEl.classList.remove('busy');
+                        statusDot.classList.remove('busy');
+                        statusDot.classList.add('available');
+                        statusText.textContent = `队列空闲 (${data.active_requests}/${data.max_requests})`;
+                        
+                        // 如果队列可用，3秒后自动刷新
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                    } else {
+                        statusText.textContent = `队列繁忙 (${data.active_requests}/${data.max_requests})`;
+                    }
+                }
+            } catch (error) {
+                console.error('检查队列状态失败:', error);
+            }
+        }
+        
+        // 倒计时
+        const timer = setInterval(() => {
+            countdown--;
+            countdownEl.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(timer);
+                window.location.reload();
+            }
+        }, 1000);
+        
+        // 点击刷新按钮
+        refreshBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.reload();
+        });
+        
+        // 初始检查队列状态
+        checkQueueStatus();
+        
+        // 每5秒检查一次队列状态
+        setInterval(checkQueueStatus, 5000);
+    </script>
+</body>
+</html> 

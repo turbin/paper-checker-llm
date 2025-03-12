@@ -8,6 +8,8 @@ from flask_cors import CORS
 import io
 import zipfile
 from logger_config import logger
+import threading
+import time
 
 # 加载环境变量
 load_dotenv()
@@ -16,6 +18,13 @@ load_dotenv()
 API_KEY = os.getenv('OPENAI_API_KEY')
 API_BASE = os.getenv('OPENAI_API_BASE')
 MODEL_NAME = os.getenv('MODEL_NAME')
+
+# 创建并发请求限制信号量，限制最大4个请求
+request_semaphore = threading.Semaphore(4)
+# 记录当前活跃请求数
+active_requests = 0
+# 保护活跃请求计数的锁
+request_count_lock = threading.Lock()
 
 app = Flask(__name__)
 CORS(app)
@@ -87,44 +96,74 @@ def extract_docx_info(file_stream):
 @app.route('/api/upload', methods=['POST'])
 def check_paper_format():
     """检查论文格式API"""
-    if 'file' not in request.files:
-        logger.warning('未上传文件')
-        return jsonify({'error': '请上传文件'}), 400
+    global active_requests
+
+    # 尝试获取信号量，如果队列已满则返回429错误
+    if not request_semaphore.acquire(blocking=False):
+        logger.warning(f'请求队列已满，当前活跃请求数: {active_requests}，拒绝新请求')
+        return jsonify({
+            'error': '请求队列已满，请稍后再试',
+            'code': 429,
+            'detail': '系统当前正在处理其他请求，请等待几分钟后重试'
+        }), 429
+
+    # 更新活跃请求计数
+    with request_count_lock:
+        active_requests += 1
+        current_active = active_requests
     
-    file = request.files['file']
-    template = request.form.get('template', 'sunshine')
-    logger.info(f'收到文件上传请求：{file.filename}, 使用模板：{template}')
+    logger.info(f'接受新请求，当前活跃请求数: {current_active}/4')
     
     try:
-        # 读取zip文件内容
-        zip_data = io.BytesIO(file.read())
-        with zipfile.ZipFile(zip_data) as zip_file:
-            # 获取第一个docx文件
-            docx_files = [f for f in zip_file.namelist() if f.endswith('.docx')]
-            if not docx_files:
-                logger.warning('压缩包中未找到.docx文件')
-                return jsonify({'error': '压缩包中未找到.docx文件'}), 400
-            
-            logger.debug(f'找到docx文件：{docx_files[0]}')
-            # 读取docx文件内容
-            docx_content = io.BytesIO(zip_file.read(docx_files[0]))
-            format_info = extract_docx_info(docx_content)
-            logger.debug(f'提取到的格式信息：{format_info}')
-            
-            # 记录上传的文件信息到日志
-            log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-            os.makedirs(log_dir, exist_ok=True)
-            log_file = os.path.join(log_dir, 'upload_file_content.log')
-            
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n{'='*50}\n")
-                f.write(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"File name: {file.filename}\n")
-                f.write(f"File size: {len(file.read())} bytes\n")
-                f.write(f"Content type: {file.content_type}\n")
-                f.write(f"Template: {template}\n")
-                file.seek(0)  # 重置文件指针
+        if 'file' not in request.files:
+            logger.warning('未上传文件')
+            return jsonify({'error': '请上传文件'}), 400
         
+        file = request.files['file']
+        template = request.form.get('template', 'sunshine')
+        logger.info(f'收到文件上传请求：{file.filename}, 使用模板：{template}')
+        
+        # 初始化format_info变量
+        format_info = None
+        
+        try:
+            # 读取zip文件内容
+            zip_data = io.BytesIO(file.read())
+            with zipfile.ZipFile(zip_data) as zip_file:
+                # 获取第一个docx文件
+                docx_files = [f for f in zip_file.namelist() if f.endswith('.docx')]
+                if not docx_files:
+                    logger.warning('压缩包中未找到.docx文件')
+                    return jsonify({'error': '压缩包中未找到.docx文件'}), 400
+                
+                logger.debug(f'找到docx文件：{docx_files[0]}')
+                # 读取docx文件内容
+                docx_content = io.BytesIO(zip_file.read(docx_files[0]))
+                format_info = extract_docx_info(docx_content)
+                logger.debug(f'提取到的格式信息：{format_info}')
+                
+                # 记录上传的文件信息到日志
+                log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+                os.makedirs(log_dir, exist_ok=True)
+                log_file = os.path.join(log_dir, 'upload_file_content.log')
+                
+                with open(log_file, 'a', encoding='utf-8') as f:
+                    f.write(f"\n{'='*50}\n")
+                    f.write(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write(f"File name: {file.filename}\n")
+                    f.write(f"File size: {len(file.read())} bytes\n")
+                    f.write(f"Content type: {file.content_type}\n")
+                    f.write(f"Template: {template}\n")
+                    file.seek(0)  # 重置文件指针
+        except Exception as e:
+            logger.error(f"处理ZIP文件时出错: {str(e)}", exc_info=True)
+            return jsonify({'error': f'处理文件时出错: {str(e)}'}), 400
+        
+        # 确保format_info已经被成功提取
+        if format_info is None:
+            logger.error("未能成功提取文件格式信息")
+            return jsonify({'error': '未能成功提取文件格式信息'}), 500
+            
         prefix = get_prompt(template)
         # logger.debug('已获取提示词模板', str(prefix))
         logger.debug('已获取提示词模板')
@@ -269,6 +308,25 @@ def check_paper_format():
             'code': 500,
             'detail': '文件处理过程中发生异常，请检查文件格式或联系管理员'
         }), 500
+    finally:
+        # 更新活跃请求计数并释放信号量
+        with request_count_lock:
+            active_requests -= 1
+            current_active = active_requests
+        request_semaphore.release()
+        logger.info(f'请求处理完成，当前活跃请求数: {current_active}/4')
+
+# 添加API端点查询当前队列状态
+@app.route('/api/queue-status', methods=['GET'])
+def queue_status():
+    """返回当前请求队列状态"""
+    with request_count_lock:
+        return jsonify({
+            'active_requests': active_requests,
+            'max_requests': 4,
+            'queue_available': active_requests < 4,
+            'timestamp': datetime.now().isoformat()
+        })
 
 if __name__ == "__main__":
     logger.info('启动Flask应用服务器')

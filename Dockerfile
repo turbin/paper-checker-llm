@@ -16,11 +16,16 @@ WORKDIR /app
 
 # 复制前端构建产物
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
+# 复制前端public目录（用于错误页面）
+COPY --from=frontend-builder /app/frontend/public /app/frontend/public
 
 # 复制后端代码
 COPY backend/ /app/backend/
 COPY promots/ /app/promots/
 
+# 不复制本地.env文件，而是创建一个空的.env文件
+# 实际的.env文件应在运行时通过卷挂载提供
+RUN touch /app/.env
 
 # 安装后端依赖
 RUN pip install --no-cache-dir -r backend/requirements.txt

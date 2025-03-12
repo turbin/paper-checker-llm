@@ -32,6 +32,7 @@ package-lock.json
 .vscode/
 *.swp
 *.swo
+*.bak
 
 # 系统相关
 .DS_Store

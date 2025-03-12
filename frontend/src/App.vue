@@ -4,6 +4,7 @@
       <template #header>
         <div class="card-header">
           <h2>论文格式检查</h2>
+          <QueueStatus />
         </div>
       </template>
       <div class="form-container">
@@ -93,6 +94,7 @@ import { ElMessage, ElLoading } from 'element-plus'
 import axios from 'axios'
 import MarkdownIt from 'markdown-it'
 import JSZip from 'jszip'
+import QueueStatus from './components/QueueStatus.vue'
 
 const md = new MarkdownIt()
 
