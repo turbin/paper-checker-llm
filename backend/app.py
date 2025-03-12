@@ -11,13 +11,33 @@ from logger_config import logger
 import threading
 import time
 
+# 获取当前文件所在目录的上级目录
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 构建.env文件的绝对路径
+env_path = os.path.join(base_dir, '.env')
+
 # 加载环境变量
-load_dotenv()
+logger.info(f'尝试加载环境变量文件: {env_path}')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+    logger.info('成功加载环境变量文件')
+else:
+    logger.warning(f'环境变量文件不存在: {env_path}')
 
 # 获取API配置
 API_KEY = os.getenv('OPENAI_API_KEY')
-API_BASE = os.getenv('OPENAI_API_BASE')
-MODEL_NAME = os.getenv('MODEL_NAME')
+API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.moonshot.cn/v1')  # 默认使用 Kimi API
+MODEL_NAME = os.getenv('MODEL_NAME', 'moonshot-v1-8k')  # 默认使用 Kimi 模型
+
+# 记录API配置信息（注意不要记录完整的API密钥）
+if API_KEY:
+    # 只记录 API 密钥的前 6 位，其余用 * 代替
+    masked_key = API_KEY[:6] + '*' * (len(API_KEY) - 6) if len(API_KEY) > 6 else '******'
+    logger.info(f'API密钥已设置，前6位: {API_KEY[:6]}...')
+else:
+    logger.warning('API密钥未设置')
+logger.info(f'API基础URL: {API_BASE}')
+logger.info(f'模型名称: {MODEL_NAME}')
 
 # 创建并发请求限制信号量，限制最大4个请求
 request_semaphore = threading.Semaphore(4)
@@ -184,6 +204,42 @@ def check_paper_format():
             "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
+        
+        # 检查 API_KEY 是否为空或格式不正确
+        if not API_KEY:
+            error_msg = "API密钥未设置，请检查环境变量"
+            logger.error(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'code': 401,
+                'detail': '请在 .env 文件中设置有效的 OPENAI_API_KEY'
+            }), 401
+        
+        # 检查 API_BASE 是否为空或格式不正确
+        if not API_BASE or ' ' in API_BASE:
+            error_msg = f"API基础URL格式不正确: '{API_BASE}'"
+            logger.error(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'code': 500,
+                'detail': '请在 .env 文件中设置正确的 OPENAI_API_BASE，不要包含多余的空格'
+            }), 500
+        
+        # 检查 MODEL_NAME 是否为空
+        if not MODEL_NAME:
+            error_msg = "模型名称未设置，请检查环境变量"
+            logger.error(error_msg)
+            return jsonify({
+                'error': error_msg,
+                'code': 500,
+                'detail': '请在 .env 文件中设置正确的 MODEL_NAME'
+            }), 500
+        
+        # 记录请求信息（不包含敏感数据）
+        logger.debug(f"请求URL: {API_BASE}/chat/completions")
+        logger.debug(f"使用模型: {MODEL_NAME}")
+        
+        # 构建符合 Kimi API 的请求数据
         data = {
             "model": MODEL_NAME,
             "messages": [
@@ -191,19 +247,13 @@ def check_paper_format():
             ],
             "stream": False,
             "max_tokens": 4096,
-            "stop": None,
             "temperature": 0.1,
-            "top_p": 0.7,
-            "top_k": 50,
-            "frequency_penalty": 0.5,
-            "n": 1,
-            "response_format": {
-                "type": "text"
-            }
+            "top_p": 0.7
         }
         
         # 发送API请求
         try:
+            logger.debug(f"发送请求到 Kimi API: {API_BASE}/chat/completions")
             response = requests.post(
                 f"{API_BASE}/chat/completions",
                 headers=headers,
@@ -215,64 +265,85 @@ def check_paper_format():
             
             # 检查API响应状态码
             if response.status_code == 200:
-                result = response.json()
-                analysis = result['choices'][0]['message']['content']
-                logger.info('成功获取分析结果')
-                
-                # 定义结果文件路径
-                output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
-                os.makedirs(output_dir, exist_ok=True)
-                result_file = os.path.join(output_dir, 'format_analysis_result.txt')
-                
-                # 如果文件存在则删除
-                if os.path.exists(result_file):
-                    os.remove(result_file)
-                
-                # 创建新文件并写入分析结果
-                with open(result_file, 'w', encoding='utf-8') as f:
-                    f.write(analysis)
-                logger.debug(f'分析结果已保存到文件：{result_file}')
-                
-                return jsonify({'result': analysis})
+                try:
+                    result = response.json()
+                    if 'choices' in result and len(result['choices']) > 0 and 'message' in result['choices'][0]:
+                        analysis = result['choices'][0]['message']['content']
+                        logger.info('成功获取分析结果')
+                        
+                        # 定义结果文件路径
+                        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
+                        os.makedirs(output_dir, exist_ok=True)
+                        result_file = os.path.join(output_dir, 'format_analysis_result.txt')
+                        
+                        # 如果文件存在则删除
+                        if os.path.exists(result_file):
+                            os.remove(result_file)
+                        
+                        # 创建新文件并写入分析结果
+                        with open(result_file, 'w', encoding='utf-8') as f:
+                            f.write(analysis)
+                        logger.debug(f'分析结果已保存到文件：{result_file}')
+                        
+                        return jsonify({'result': analysis})
+                    else:
+                        error_msg = "API响应格式不正确，缺少必要的字段"
+                        logger.error(f"{error_msg}: {result}")
+                        return jsonify({
+                            'error': error_msg,
+                            'code': 500,
+                            'detail': '服务器返回的数据格式不符合预期'
+                        }), 500
+                except Exception as e:
+                    error_msg = f"解析API响应时出错: {str(e)}"
+                    logger.error(error_msg)
+                    return jsonify({
+                        'error': error_msg,
+                        'code': 500,
+                        'detail': '无法解析服务器返回的数据'
+                    }), 500
             elif response.status_code == 401:
                 # 处理401未授权错误
                 error_detail = "API密钥无效或已过期"
                 try:
-                    error_json = response.json()
-                    if 'error' in error_json:
-                        if isinstance(error_json['error'], dict) and 'message' in error_json['error']:
-                            error_detail = error_json['error']['message']
-                        elif isinstance(error_json['error'], str):
-                            error_detail = error_json['error']
+                    error_response = response.json()
+                    if 'error' in error_response:
+                        error_detail = error_response['error'].get('message', error_detail)
                 except:
                     pass
                 
-                error_msg = f"API认证失败(401): {error_detail}"
+                error_msg = f"API认证失败: {error_detail}"
                 logger.error(error_msg)
                 return jsonify({
                     'error': error_msg,
                     'code': 401,
-                    'detail': '请检查API密钥是否有效，或联系管理员解决授权问题'
+                    'detail': '请检查API密钥是否有效，或者联系管理员重新配置API密钥'
                 }), 401
+            elif response.status_code == 429:
+                # 处理429请求过多错误
+                error_msg = "API请求过于频繁，请稍后再试"
+                logger.error(error_msg)
+                return jsonify({
+                    'error': error_msg,
+                    'code': 429,
+                    'detail': '已达到API请求限制，请稍后再试'
+                }), 429
             else:
                 # 处理其他错误
-                error_detail = response.text
+                error_detail = f"状态码: {response.status_code}"
                 try:
-                    error_json = response.json()
-                    if 'error' in error_json:
-                        if isinstance(error_json['error'], dict) and 'message' in error_json['error']:
-                            error_detail = error_json['error']['message']
-                        elif isinstance(error_json['error'], str):
-                            error_detail = error_json['error']
+                    error_response = response.json()
+                    if 'error' in error_response:
+                        error_detail = error_response['error'].get('message', error_detail)
                 except:
                     pass
                 
-                error_msg = f"API请求失败({response.status_code}): {error_detail}"
+                error_msg = f"API请求失败: {error_detail}"
                 logger.error(error_msg)
                 return jsonify({
                     'error': error_msg,
                     'code': response.status_code,
-                    'detail': '请求远程服务失败，请稍后重试或联系管理员'
+                    'detail': '请求处理失败，请稍后再试或联系管理员'
                 }), response.status_code
                 
         except requests.exceptions.Timeout:

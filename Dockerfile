@@ -30,6 +30,9 @@ RUN touch /app/.env
 # 安装后端依赖
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
+# 删除默认的 Nginx 配置文件，避免冲突
+RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
+
 # 复制 Nginx 配置文件
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

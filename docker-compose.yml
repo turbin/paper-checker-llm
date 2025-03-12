@@ -2,9 +2,7 @@ version: '3'
 
 services:
   paper-checker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: paper-checker:latest
     container_name: paper-checker
     ports:
       - "8080:80"  # 将容器的80端口映射到主机的8080端口
