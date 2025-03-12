@@ -8,13 +8,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     strictPort: false,
-    open: false,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:5300',
-        changeOrigin: true,
-        secure: false
-      }
-    }
+    open: false
   }
 })

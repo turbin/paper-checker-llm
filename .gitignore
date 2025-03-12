@@ -18,6 +18,14 @@ ENV/
 *.last/
 backend/logs/
 
+# 前端相关
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm/
 
 # IDE相关
 .idea/

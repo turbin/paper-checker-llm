@@ -152,9 +152,7 @@ def check_paper_format():
             ],
             "stream": False,
             "max_tokens": 4096,
-            "stop": [
-                "null"
-            ],
+            "stop": None,
             "temperature": 0.7,
             "top_p": 0.7,
             "top_k": 50,
@@ -173,6 +171,8 @@ def check_paper_format():
                 json=data,
                 timeout=60  # 设置超时时间为60秒
             )
+            
+            logger.debug(f'API响应状态码: {response.status_code}')
             
             # 检查API响应状态码
             if response.status_code == 200:
@@ -272,4 +272,4 @@ def check_paper_format():
 
 if __name__ == "__main__":
     logger.info('启动Flask应用服务器')
-    app.run(host='0.0.0.0', port=5300, debug=True)
+    app.run(host='127.0.0.1', port=5300, debug=True)
