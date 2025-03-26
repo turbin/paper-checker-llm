@@ -6,7 +6,7 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.9-slim
+FROM python:3.9-bullseye
 
 # 安装 Nginx
 RUN apt-get update && apt-get install -y nginx && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 
 # 复制 Nginx 配置文件
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # 复制启动脚本
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

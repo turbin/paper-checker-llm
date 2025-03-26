@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from docx import Document
 import requests
 from dotenv import load_dotenv
@@ -10,6 +10,9 @@ import zipfile
 from logger_config import logger
 import threading
 import time
+import json
+import uuid
+from werkzeug.utils import secure_filename
 
 # 获取当前文件所在目录的上级目录
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,6 +48,9 @@ request_semaphore = threading.Semaphore(4)
 active_requests = 0
 # 保护活跃请求计数的锁
 request_count_lock = threading.Lock()
+
+# 创建上传会话存储
+upload_sessions = {}
 
 app = Flask(__name__)
 CORS(app)
@@ -111,6 +117,7 @@ def extract_docx_info(file_stream):
         if footer_text:
             format_info["footers"].append(footer_text)
     
+
     return format_info
 
 @app.route('/api/upload', methods=['POST'])
@@ -247,7 +254,7 @@ def check_paper_format():
             ],
             "stream": False,
             "max_tokens": 4096,
-            "temperature": 0.1,
+            "temperature": 0,
             "top_p": 0.7
         }
         
@@ -398,6 +405,147 @@ def queue_status():
             'queue_available': active_requests < 4,
             'timestamp': datetime.now().isoformat()
         })
+
+@app.route('/api/upload/init', methods=['POST'])
+def init_upload():
+    try:
+        data = request.get_json()
+        session_id = str(uuid.uuid4())
+        
+        # 创建临时目录存储分片
+        temp_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'temp', session_id)
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # 保存会话信息
+        upload_sessions[session_id] = {
+            'filename': secure_filename(data['filename']),
+            'total_size': data['totalSize'],
+            'total_chunks': data['totalChunks'],
+            'uploaded_chunks': set(),
+            'temp_dir': temp_dir,
+            'created_at': datetime.now()
+        }
+        
+        return jsonify({
+            'success': True,
+            'sessionId': session_id
+        })
+    except Exception as e:
+        logger.error(f'初始化上传会话失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/upload/chunk', methods=['POST'])
+def upload_chunk():
+    try:
+        session_id = request.form.get('sessionId')
+        chunk_index = int(request.form.get('chunkIndex'))
+        total_chunks = int(request.form.get('totalChunks'))
+        
+        if session_id not in upload_sessions:
+            return jsonify({
+                'success': False,
+                'error': '无效的会话ID'
+            }), 400
+        
+        session = upload_sessions[session_id]
+        if chunk_index >= total_chunks:
+            return jsonify({
+                'success': False,
+                'error': '无效的分片索引'
+            }), 400
+        
+        # 保存分片文件
+        chunk_file = request.files['file']
+        chunk_path = os.path.join(session['temp_dir'], f'chunk_{chunk_index}')
+        chunk_file.save(chunk_path)
+        
+        # 更新已上传分片记录
+        session['uploaded_chunks'].add(chunk_index)
+        
+        return jsonify({
+            'success': True,
+            'message': f'分片 {chunk_index + 1}/{total_chunks} 上传成功'
+        })
+    except Exception as e:
+        logger.error(f'上传分片失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/upload/complete', methods=['POST'])
+def complete_upload():
+    try:
+        session_id = request.json.get('sessionId')
+        if session_id not in upload_sessions:
+            return jsonify({
+                'success': False,
+                'error': '无效的会话ID'
+            }), 400
+        
+        session = upload_sessions[session_id]
+        
+        # 检查是否所有分片都已上传
+        if len(session['uploaded_chunks']) != session['total_chunks']:
+            return jsonify({
+                'success': False,
+                'error': '文件上传不完整'
+            }), 400
+        
+        # 合并所有分片
+        final_path = os.path.join(app.config['UPLOAD_FOLDER'], session['filename'])
+        with open(final_path, 'wb') as outfile:
+            for i in range(session['total_chunks']):
+                chunk_path = os.path.join(session['temp_dir'], f'chunk_{i}')
+                with open(chunk_path, 'rb') as infile:
+                    outfile.write(infile.read())
+        
+        # 清理临时文件
+        import shutil
+        shutil.rmtree(session['temp_dir'])
+        
+        # 删除会话信息
+        del upload_sessions[session_id]
+        
+        # 处理上传完成的文件
+        process_uploaded_file(final_path)
+        
+        return jsonify({
+            'success': True,
+            'message': '文件上传完成'
+        })
+    except Exception as e:
+        logger.error(f'完成上传失败: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 清理过期的上传会话
+def cleanup_expired_sessions():
+    while True:
+        current_time = datetime.now()
+        expired_sessions = []
+        
+        for session_id, session in upload_sessions.items():
+            # 如果会话超过1小时未完成，则清理
+            if (current_time - session['created_at']).total_seconds() > 3600:
+                expired_sessions.append(session_id)
+                # 清理临时文件
+                import shutil
+                shutil.rmtree(session['temp_dir'])
+        
+        for session_id in expired_sessions:
+            del upload_sessions[session_id]
+        
+        time.sleep(300)  # 每5分钟检查一次
+
+# 启动清理线程
+cleanup_thread = threading.Thread(target=cleanup_expired_sessions, daemon=True)
+cleanup_thread.start()
 
 if __name__ == "__main__":
     logger.info('启动Flask应用服务器')

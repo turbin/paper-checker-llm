@@ -59,17 +59,17 @@ if [ ! -f /app/promots/sunshine.ruler ] || [ ! -f /app/promots/xmu.ruler ]; then
 fi
 
 # 检查Nginx配置
-if [ ! -f /etc/nginx/conf.d/default.conf ]; then
+if [ ! -f /etc/nginx/nginx.conf ]; then
     echo "错误: 未找到Nginx配置文件"
     exit 1
 else
     echo "Nginx配置文件检查通过"
     echo "Nginx配置文件内容:"
-    cat /etc/nginx/conf.d/default.conf
+    cat /etc/nginx/nginx.conf
     
     # 检查是否有其他配置文件可能导致冲突
     echo "检查其他可能冲突的Nginx配置文件:"
-    find /etc/nginx -type f -name "*.conf" | grep -v "/etc/nginx/conf.d/default.conf"
+    find /etc/nginx -type f -name "*.conf" | grep -v "/etc/nginx/nginx.conf"
     
     # 测试Nginx配置是否有语法错误
     echo "测试Nginx配置语法:"
