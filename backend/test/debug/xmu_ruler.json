@@ -1,0 +1,93 @@
+{
+  "cover": {
+    "title": {
+      "font": "黑体",
+      "font_size": 18,
+      "alignment": 1
+    },
+    "author": {
+      "font": "楷体",
+      "font_size": 14,
+      "alignment": 1
+    },
+    "other_info": {
+      "font": "宋体",
+      "font_size": 12,
+      "alignment": 1
+    }
+  },
+  "chapter": {
+    "title": {
+      "font": "黑体",
+      "font_size": 16,
+      "alignment": 1
+    },
+    "subtitle": {
+      "font": "黑体",
+      "font_size": 14,
+      "alignment": 0
+    },
+    "content": {
+      "font": "宋体",
+      "font_size": 12,
+      "alignment": 0,
+      "line_spacing": 1.5,
+      "first_line_indent": 24
+    }
+  },
+  "header_footer": {
+    "header": {
+      "font": "宋体",
+      "font_size": 10.5,
+      "alignment": 1
+    },
+    "footer": {
+      "font": "宋体",
+      "font_size": 10.5,
+      "alignment": 1
+    }
+  },
+  "table": {
+    "caption": {
+      "font": "宋体",
+      "font_size": 12,
+      "alignment": 1,
+      "bold": true
+    },
+    "content": {
+      "font": "宋体",
+      "font_size": 10.5,
+      "alignment": 0
+    },
+    "source": {
+      "font": "宋体",
+      "font_size": 9,
+      "alignment": 0
+    }
+  },
+  "figure": {
+    "caption": {
+      "font": "宋体",
+      "font_size": 12,
+      "alignment": 1,
+      "bold": true
+    },
+    "source": {
+      "font": "宋体",
+      "font_size": 9,
+      "alignment": 0
+    }
+  },
+  "reference": {
+    "title": {
+      "font": "黑体",
+      "font_size": 16,
+      "alignment": 1
+    },
+    "content": {
+      "font": "宋体",
+      "font_size": 10.5,
+      "alignment": 0
+    }
+  }
+}

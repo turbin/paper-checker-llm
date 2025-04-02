@@ -41,7 +41,10 @@ COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # 创建必要的目录
-RUN mkdir -p /app/backend/logs /app/backend/output
+RUN mkdir -p /app/backend/logs /app/backend/output /app/backend/uploads
+
+# 设置Python路径
+ENV PYTHONPATH=/app/backend
 
 # 暴露端口
 EXPOSE 80

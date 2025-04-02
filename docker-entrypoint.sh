@@ -78,30 +78,48 @@ fi
 
 # 启动后端服务
 echo "启动后端服务..."
-cd /app && python -u backend/app.py &
+cd /app
+PYTHONPATH=/app python -m backend.run &
 BACKEND_PID=$!
 
 # 等待后端服务启动
 echo "等待后端服务启动..."
-sleep 3
+sleep 5
 
-# 启动 Nginx
-echo "启动 Nginx 服务(提供前端静态文件)..."
-nginx -g "daemon off;" &
-NGINX_PID=$!
+# 检查后端服务是否正常运行
+if ! kill -0 $BACKEND_PID 2>/dev/null; then
+    echo "后端服务启动失败"
+    exit 1
+fi
+
+# 启动Nginx服务
+echo "启动Nginx服务..."
+nginx -g 'daemon off;' &
+
+# 等待Nginx启动
+sleep 2
+
+# 检查Nginx是否正常运行
+if ! pgrep nginx > /dev/null; then
+    echo "Nginx启动失败"
+    exit 1
+fi
+
+echo "所有服务已启动"
+echo "Nginx运行在端口 8087"
+echo "后端API运行在端口 5300"
 
 # 捕获 SIGTERM 和 SIGINT 信号
-trap "echo '正在关闭服务...'; kill $BACKEND_PID; kill $NGINX_PID; exit 0" SIGTERM SIGINT
+trap "echo '正在关闭服务...'; kill $BACKEND_PID; exit 0" SIGTERM SIGINT
 
 # 输出访问信息
 echo ""
 echo "服务已启动!"
 echo "架构说明:"
 echo "- 前端: 由Nginx提供静态文件服务 (容器内端口: 80)"
-echo "- 后端: Flask应用运行在0.0.0.0:5300"
+echo "- 后端: Flask应用运行在0.0.0.0:5000"
 echo "- Nginx: 将/api请求代理到后端服务"
 echo "- 端口映射: 主机端口8080 -> 容器端口80"
-echo "- 请求队列: 最大并发处理4个请求"
 echo ""
 echo "请通过以下地址访问应用:"
 echo "http://localhost:8080 或 http://服务器IP:8080"
@@ -113,5 +131,4 @@ wait -n
 # 如果有进程异常退出，则关闭所有服务
 echo "检测到服务异常退出，正在关闭所有服务..."
 kill $BACKEND_PID 2>/dev/null || true
-kill $NGINX_PID 2>/dev/null || true
 exit 1

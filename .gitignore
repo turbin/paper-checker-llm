@@ -1,39 +1,44 @@
-# 排除flagged目录（用于存储Gradio上传的文件）
-flagged/
-
-# 排除output目录（用于存储分析结果）
-output/
-
-# Python相关文件
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# 环境相关
-.env
-.venv
+*.so
+.Python
 env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
 venv/
 ENV/
-*.last/
-backend/logs/
 
-# 前端相关
-node_modules/
-dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-.npm/
-
-# IDE相关
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*.bak
 
-# 系统相关
+# 项目特定
+backend/logs/
+backend/output/
+backend/uploads/
+docs/
+flagged/
+.env
+
+# 系统文件
 .DS_Store
 Thumbs.db

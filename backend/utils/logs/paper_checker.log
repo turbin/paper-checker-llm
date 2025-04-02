@@ -1,0 +1,184 @@
+2025-03-30 19:25:58 - ERROR - format_agents - 加载封面规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 封面格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 24, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 98, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 加载页眉页脚规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 页眉页脚格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 389, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 433, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 加载表格规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 表格格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 525, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 557, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 加载章节规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:25:58 - ERROR - format_agents - 章节格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 205, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 285, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 加载封面规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 封面格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 24, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 98, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 加载页眉页脚规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 页眉页脚格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 389, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 433, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 加载表格规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 表格格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 525, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 557, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 加载章节规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:27:56 - ERROR - format_agents - 章节格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 205, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 285, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 加载封面规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 封面格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 24, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 98, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 加载页眉页脚规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 页眉页脚格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 389, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 433, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 加载表格规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 表格格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 525, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 557, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 加载章节规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:36 - ERROR - format_agents - 章节格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 205, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 285, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 加载封面规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 封面格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 24, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 98, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 加载页眉页脚规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 页眉页脚格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 389, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 433, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 加载表格规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 表格格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 525, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 557, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 加载章节规则失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:29:55 - ERROR - format_agents - 章节格式解析失败: Config.get_prompts_path() missing 1 required positional argument: 'self'
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 205, in run
+    rules = self._load_rules()
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 285, in _load_rules
+    with open(Config.get_prompts_path() + "/promots/xmu.ruler", "r", encoding="utf-8") as f:
+TypeError: Config.get_prompts_path() missing 1 required positional argument: 'self'
+2025-03-30 19:39:03 - ERROR - format_agents - 加载封面规则失败: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 封面格式解析失败: Extra data: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 24, in run
+    rules = self._load_rules(input_data)
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 106, in _load_rules
+    rules = json.load(f)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/decoder.py", line 340, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 加载页眉页脚规则失败: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 页眉页脚格式解析失败: Extra data: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 403, in run
+    rules = self._load_rules(input_data)
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 455, in _load_rules
+    rules = json.load(f)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/decoder.py", line 340, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 加载表格规则失败: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 表格格式解析失败: Extra data: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 546, in run
+    rules = self._load_rules(input_data)
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 586, in _load_rules
+    rules = json.load(f)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/decoder.py", line 340, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 加载章节规则失败: Extra data: line 1 column 2 (char 1)
+2025-03-30 19:39:03 - ERROR - format_agents - 章节格式解析失败: Extra data: line 1 column 2 (char 1)
+Traceback (most recent call last):
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 212, in run
+    rules = self._load_rules(input_data)
+  File "/Volumes/extern-1t-x5/workspace/01-repo/03-personal-repo/paper-checker-llm/backend/agents/format_agents.py", line 300, in _load_rules
+    rules = json.load(f)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Users/yanbin/miniconda/envs/paper-checker-llm/lib/python3.10/json/decoder.py", line 340, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 2 (char 1)
