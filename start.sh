@@ -260,7 +260,67 @@ if [ "$IS_WSL" = true ]; then
     fi
 else
     # 非WSL环境，正常启动
-    npm run dev &
+    cd "$SCRIPT_DIR/frontend"
+
+    # 检查node_modules目录
+    if [ ! -d "node_modules" ]; then
+        echo -e "${YELLOW}未检测到node_modules目录，开始安装依赖...${NC}"
+        npm install
+        
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}安装依赖失败，尝试运行修复脚本...${NC}"
+            cd "$SCRIPT_DIR"
+            if [ -f "./fix_frontend.sh" ]; then
+                bash ./fix_frontend.sh
+                cd "$SCRIPT_DIR/frontend"
+            else
+                echo -e "${RED}未找到修复脚本，无法继续${NC}"
+                kill $BACKEND_PID 2>/dev/null
+                exit 1
+            fi
+        fi
+    fi
+    
+    # 使用本地node_modules中的vite启动，而不是依赖全局安装
+    if [ -f "./node_modules/.bin/vite" ]; then
+        echo -e "${GREEN}检测到vite命令，开始启动服务...${NC}"
+        ./node_modules/.bin/vite --host &
+    elif [ -f "./node_modules/vite/bin/vite.js" ]; then
+        echo -e "${GREEN}检测到vite.js，开始启动服务...${NC}"
+        node ./node_modules/vite/bin/vite.js --host &
+    else
+        # 尝试安装并启动
+        echo -e "${YELLOW}未找到vite，尝试安装...${NC}"
+        npm install
+        
+        if [ -f "./node_modules/.bin/vite" ]; then
+            ./node_modules/.bin/vite --host &
+        elif [ -f "./node_modules/vite/bin/vite.js" ]; then
+            node ./node_modules/vite/bin/vite.js --host &
+        else
+            echo -e "${RED}前端服务启动失败，尝试运行修复脚本...${NC}"
+            cd "$SCRIPT_DIR"
+            if [ -f "./fix_frontend.sh" ]; then
+                bash ./fix_frontend.sh
+                cd "$SCRIPT_DIR/frontend"
+                # 再次尝试启动
+                if [ -f "./node_modules/.bin/vite" ]; then
+                    ./node_modules/.bin/vite --host &
+                elif [ -f "./node_modules/vite/bin/vite.js" ]; then
+                    node ./node_modules/vite/bin/vite.js --host &
+                else
+                    echo -e "${RED}修复后仍无法启动前端服务${NC}"
+                    kill $BACKEND_PID 2>/dev/null
+                    exit 1
+                fi
+            else
+                echo -e "${RED}未找到修复脚本，无法继续${NC}"
+                kill $BACKEND_PID 2>/dev/null
+                exit 1
+            fi
+        fi
+    fi
+    
     FRONTEND_PID=$!
 fi
 

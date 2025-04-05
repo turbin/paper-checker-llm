@@ -1,20 +1,22 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import path from 'path';
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/',
   server: {
     host: '0.0.0.0',
     port: 3000,
-    strictPort: false,
-    open: false,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5300',
-        changeOrigin: true,
-        secure: false
+        target: 'http://localhost:5300',
+        changeOrigin: true
       }
     }
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src')
+    }
   }
-})
+});

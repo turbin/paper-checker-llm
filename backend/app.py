@@ -13,6 +13,7 @@ import time
 import json
 import uuid
 from werkzeug.utils import secure_filename
+from abc import ABC, abstractmethod
 
 # 获取当前文件所在目录的上级目录
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,71 +56,392 @@ upload_sessions = {}
 app = Flask(__name__)
 CORS(app)
 
+# 添加格式检查器的抽象基类
+class FormatChecker(ABC):
+    """
+    论文格式检查器抽象基类
+    """
+    def __init__(self, template_name):
+        self.template_name = template_name
+        self.ruler_content = self._get_ruler_content()
+        
+    def _get_ruler_content(self):
+        """获取对应模板的ruler文件内容"""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ruler_file = os.path.join(base_dir, 'promots', f'{self.template_name}.ruler')
+        
+        if not os.path.exists(ruler_file):
+            logger.error(f'模板文件 {ruler_file} 不存在')
+            raise FileNotFoundError(f'模板文件 {ruler_file} 不存在')
+        
+        with open(ruler_file, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            logger.debug(f'已加载模板文件 {ruler_file}')
+            return content
+    
+    @abstractmethod
+    def extract_format_info(self, docx_content):
+        """提取文档的格式信息"""
+        pass
+    
+    @abstractmethod
+    def generate_user_prompt(self, format_info):
+        """生成用户提示词"""
+        pass
+    
+    def get_system_prompt(self):
+        """获取system角色的提示词"""
+        return self.ruler_content
+    
+    def check_format(self, docx_content):
+        """
+        检查文档格式
+        返回: (system_prompt, user_prompt)
+        """
+        format_info = self.extract_format_info(docx_content)
+        user_prompt = self.generate_user_prompt(format_info)
+        return self.get_system_prompt(), user_prompt, format_info
+
+# 厦门大学论文格式检查器
+class XmuFormatChecker(FormatChecker):
+    """厦门大学论文格式检查器"""
+    
+    def extract_format_info(self, docx_content):
+        """从docx文件流中提取格式信息"""
+        doc = Document(docx_content)
+        format_info = {
+            "paragraphs": len(doc.paragraphs),
+            "sections": len(doc.sections),
+            "styles": [],
+            "fonts": set(),
+            "font_sizes": set(),      # 改为集合以避免重复
+            "spacing": [],
+            "first_line_indents": set(),  # 改为集合以避免重复
+            "headers": [],
+            "footers": [],
+            "chapter_titles": [],
+            "section_titles": [],
+            "subsection_titles": [],
+            "title": "",
+            "abstract": "",
+            "eng_abstract": "",
+            "eng_abstract_length": 0,  # 新增英文摘要字符长度
+            "abstract_keywords": [],
+            "eng_keywords": [],
+            "page_margins": {},
+            "common_margins": {}  # 新增常见页边距统计
+        }
+        
+        # 统计页边距
+        margins_count = {}
+        
+        # 遍历所有段落
+        for i, paragraph in enumerate(doc.paragraphs):
+            if paragraph.text:
+                # 提取段落样式
+                if paragraph.style.name not in format_info["styles"]:
+                    format_info["styles"].append(paragraph.style.name)
+                
+                # 提取字体和大小信息
+                for run in paragraph.runs:
+                    if run.font.name:
+                        format_info["fonts"].add(run.font.name)
+                    if run.font.size:
+                        try:
+                            font_size = run.font.size.pt if hasattr(run.font.size, 'pt') else None
+                            if font_size and font_size > 0 and font_size < 100:  # 添加合理性检查
+                                format_info["font_sizes"].add(font_size)
+                        except:
+                            pass
+                
+                # 提取行间距和缩进信息
+                if paragraph.paragraph_format:
+                    if paragraph.paragraph_format.line_spacing:
+                        # 添加合理性检查
+                        line_spacing = paragraph.paragraph_format.line_spacing
+                        if line_spacing > 0 and line_spacing < 10:  # 通常行间距在1-3之间
+                            format_info["spacing"].append(line_spacing)
+                    
+                    if paragraph.paragraph_format.first_line_indent:
+                        try:
+                            first_indent = paragraph.paragraph_format.first_line_indent.pt if hasattr(paragraph.paragraph_format.first_line_indent, 'pt') else None
+                            if first_indent and first_indent > 0 and first_indent < 300:  # 添加合理性检查
+                                format_info["first_line_indents"].add(first_indent)
+                        except:
+                            pass
+                
+                # 识别标题级别
+                if paragraph.style and ("heading" in paragraph.style.name.lower() or "标题" in paragraph.style.name):
+                    heading_level = 0
+                    if paragraph.style.name == 'Heading 1' or paragraph.style.name == '标题 1':
+                        heading_level = 1
+                        format_info["chapter_titles"].append(paragraph.text)
+                    elif paragraph.style.name == 'Heading 2' or paragraph.style.name == '标题 2':
+                        heading_level = 2
+                        format_info["section_titles"].append(paragraph.text)
+                    elif paragraph.style.name == 'Heading 3' or paragraph.style.name == '标题 3':
+                        heading_level = 3
+                        format_info["subsection_titles"].append(paragraph.text)
+                    
+                    # 如果前几段是空的，可能第一个非空段落是标题
+                    if not format_info["title"] and heading_level == 1 and len(format_info["chapter_titles"]) == 1:
+                        format_info["title"] = paragraph.text
+                
+                # 尝试识别摘要
+                if '摘要' in paragraph.text[:10] and len(paragraph.text) < 20:
+                    # 直接使用遍历时的索引
+                    if i + 1 < len(doc.paragraphs):
+                        abstract_content = doc.paragraphs[i + 1].text
+                        if len(abstract_content) > 50:  # 假设摘要至少有50个字符
+                            format_info["abstract"] = abstract_content
+                
+                # 尝试识别英文摘要
+                if 'Abstract' in paragraph.text[:15] and len(paragraph.text) < 20:
+                    # 直接使用遍历时的索引
+                    if i + 1 < len(doc.paragraphs):
+                        abstract_content = doc.paragraphs[i + 1].text
+                        if len(abstract_content) > 30:  # 英文摘要通常较短
+                            format_info["eng_abstract"] = abstract_content
+                            format_info["eng_abstract_length"] = len(abstract_content)  # 记录字符长度
+                
+                # 尝试识别关键词
+                if '关键词' in paragraph.text[:10]:
+                    keywords_text = paragraph.text.replace('关键词', '').replace('：', ':').split(':')[-1].strip()
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('；') if k.strip()]
+                
+                # 尝试识别英文关键词
+                if 'Keywords' in paragraph.text[:15]:
+                    keywords_text = paragraph.text.replace('Keywords', '').replace('：', ':').split(':')[-1].strip()
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+        
+        # 提取页眉页脚信息
+        for i, section in enumerate(doc.sections):
+            # 页面设置信息
+            if i == 0 or not format_info["page_margins"]:
+                format_info["page_margins"] = {
+                    "top": section.top_margin.cm if hasattr(section.top_margin, 'cm') else None,
+                    "bottom": section.bottom_margin.cm if hasattr(section.bottom_margin, 'cm') else None,
+                    "left": section.left_margin.cm if hasattr(section.left_margin, 'cm') else None,
+                    "right": section.right_margin.cm if hasattr(section.right_margin, 'cm') else None
+                }
+            
+            # 统计页边距
+            margin_key = f"{section.left_margin.cm:.2f}_{section.right_margin.cm:.2f}"
+            margins_count[margin_key] = margins_count.get(margin_key, 0) + 1
+            
+            # 页眉
+            header = section.header
+            if not header.is_linked_to_previous:
+                header_text = '\n'.join(paragraph.text for paragraph in header.paragraphs if paragraph.text)
+                if header_text:
+                    format_info["headers"].append(header_text)
+            
+            # 页脚
+            footer = section.footer
+            if not footer.is_linked_to_previous:
+                footer_text = '\n'.join(paragraph.text for paragraph in footer.paragraphs if paragraph.text)
+                if footer_text:
+                    format_info["footers"].append(footer_text)
+        
+        # 计算最常见的页边距
+        if margins_count:
+            most_common_margin = max(margins_count.items(), key=lambda x: x[1])[0]
+            left, right = most_common_margin.split('_')
+            format_info["common_margins"] = {
+                "left": float(left),
+                "right": float(right),
+                "sections_count": margins_count[most_common_margin]
+            }
+        
+        # 将字体集合转换为列表
+        format_info["fonts"] = list(format_info["fonts"])
+        if "font_sizes" in format_info:
+            format_info["font_sizes"] = sorted(list(format_info["font_sizes"]))
+        if "first_line_indents" in format_info:
+            format_info["first_line_indents"] = sorted(list(format_info["first_line_indents"]))
+        
+        return format_info
+        
+    def generate_user_prompt(self, format_info):
+        """生成厦门大学论文格式检查的用户提示词"""
+        # 处理字体大小格式
+        font_sizes_str = ', '.join(map(str, format_info.get('font_sizes', []))) if format_info.get('font_sizes') else '未检测到'
+        
+        # 处理首行缩进格式  
+        first_line_indents_str = ', '.join(map(str, format_info.get('first_line_indents', []))) if format_info.get('first_line_indents') else '未检测到'
+        
+        # 处理常见页边距信息
+        common_margins = format_info.get('common_margins', {})
+        common_margins_str = ""
+        if common_margins:
+            try:
+                # 确保sections是有效的列表或数组类型
+                sections_count = format_info.get('sections', 0)
+                if isinstance(sections_count, int):
+                    sections_total = sections_count
+                else:
+                    sections_total = len(sections_count)
+                
+                common_margins_str = f"（最常见设置：左{common_margins.get('left')}cm, 右{common_margins.get('right')}cm，占{common_margins.get('sections_count')}/{sections_total}个章节）"
+            except (TypeError, AttributeError):
+                common_margins_str = f"（最常见设置：左{common_margins.get('left')}cm, 右{common_margins.get('right')}cm）"
+        
+        prompt = f"""请根据厦门大学学位论文格式规范，分析以下论文格式信息，判断是否符合要求：
+
+        1. 基本信息：
+        - 总段落数：{format_info.get('paragraphs', '未检测到')}
+        - 章节数：{format_info.get('sections', '未检测到')}
+        
+        2. 字体与样式：
+        - 使用的样式：{', '.join(format_info.get('styles', ['未检测到']))}
+        - 使用的字体：{', '.join(format_info.get('fonts', ['未检测到']))}
+        - 字体大小：{font_sizes_str}
+        
+        3. 段落格式：
+        - 行间距：{', '.join(map(str, format_info.get('spacing', ['未检测到'])))}
+        - 首行缩进：{first_line_indents_str}
+        
+        4. 页面设置：
+        - 页眉信息：{', '.join(format_info.get('headers', [])) if format_info.get('headers') else '无'}
+        - 页脚信息：{', '.join(format_info.get('footers', [])) if format_info.get('footers') else '无'}
+        - 页边距：上{format_info.get('page_margins', {}).get('top', '未检测到')}cm, 下{format_info.get('page_margins', {}).get('bottom', '未检测到')}cm, 左{format_info.get('page_margins', {}).get('left', '未检测到')}cm, 右{format_info.get('page_margins', {}).get('right', '未检测到')}cm {common_margins_str}
+
+        5. 标题层级：
+        - 章标题示例：{format_info.get('chapter_titles', ['未检测到'])[0] if format_info.get('chapter_titles') else '未检测到'}
+        - 节标题示例：{format_info.get('section_titles', ['未检测到'])[0] if format_info.get('section_titles') else '未检测到'}
+        - 子标题示例：{format_info.get('subsection_titles', ['未检测到'])[0] if format_info.get('subsection_titles') else '未检测到'}
+        - 一级标题数量：{len(format_info.get('chapter_titles', []))}个
+        - 二级标题数量：{len(format_info.get('section_titles', []))}个
+        - 三级标题数量：{len(format_info.get('subsection_titles', []))}个
+
+        6. 摘要和关键词：
+        - 中文摘要：{format_info.get('abstract', '')[:100] + '...' if format_info.get('abstract') else '未检测到'}
+        - 中文关键词：{', '.join(format_info.get('abstract_keywords', [])) if format_info.get('abstract_keywords') else '未检测到'}
+        - 英文摘要：{format_info.get('eng_abstract', '')[:100] + '...' if format_info.get('eng_abstract') else '未检测到'}
+        - 英文摘要长度：{format_info.get('eng_abstract_length', 0)}字符
+        - 英文关键词：{', '.join(format_info.get('eng_keywords', [])) if format_info.get('eng_keywords') else '未检测到'}
+
+        请详细说明该论文是否符合厦门大学学位论文格式规范，如有不符合的地方，请具体指出并给出修改建议。按照封面格式、摘要与关键词、目录、正文格式、图表格式、参考文献等方面逐一分析。"""
+                
+        return prompt
+
+# 阳光学院论文格式检查器
+class SunshineFormatChecker(FormatChecker):
+    """阳光学院论文格式检查器"""
+    
+    def extract_format_info(self, docx_content):
+        """从docx文件流中提取格式信息"""
+        # 简单实现，可以根据需要扩展
+        doc = Document(docx_content)
+        format_info = {
+            "paragraphs": len(doc.paragraphs),
+            "sections": len(doc.sections),
+            "styles": [],
+            "fonts": set(),
+            "spacing": [],
+            "headers": [],
+            "footers": []
+        }
+        
+        # 遍历所有段落
+        for i, paragraph in enumerate(doc.paragraphs):
+            if paragraph.style.name not in format_info["styles"]:
+                format_info["styles"].append(paragraph.style.name)
+            
+            # 提取字体信息
+            for run in paragraph.runs:
+                if run.font.name:
+                    format_info["fonts"].add(run.font.name)
+            
+            # 提取段落间距信息
+            if paragraph.paragraph_format.line_spacing:
+                format_info["spacing"].append(paragraph.paragraph_format.line_spacing)
+            
+            # 尝试识别摘要
+            if '摘要' in paragraph.text[:10] and len(paragraph.text) < 20:
+                # 直接使用遍历时的索引
+                if i + 1 < len(doc.paragraphs):
+                    abstract_content = doc.paragraphs[i + 1].text
+                    if len(abstract_content) > 50:  # 假设摘要至少有50个字符
+                        format_info["abstract"] = abstract_content
+            
+            # 尝试识别英文摘要
+            if 'Abstract' in paragraph.text[:15] and len(paragraph.text) < 20:
+                # 直接使用遍历时的索引
+                if i + 1 < len(doc.paragraphs):
+                    abstract_content = doc.paragraphs[i + 1].text
+                    if len(abstract_content) > 30:  # 英文摘要通常较短
+                        format_info["eng_abstract"] = abstract_content
+        
+        # 提取页眉页脚信息
+        for section in doc.sections:
+            # 提取页眉
+            header = section.header
+            if header.is_linked_to_previous:
+                continue
+            header_text = '\n'.join(paragraph.text for paragraph in header.paragraphs if paragraph.text)
+            if header_text:
+                format_info["headers"].append(header_text)
+            
+            # 提取页脚
+            footer = section.footer
+            if footer.is_linked_to_previous:
+                continue
+            footer_text = '\n'.join(paragraph.text for paragraph in footer.paragraphs if paragraph.text)
+            if footer_text:
+                format_info["footers"].append(footer_text)
+        
+        # 将字体集合转换为列表
+        format_info["fonts"] = list(format_info["fonts"])
+        
+        return format_info
+        
+    def generate_user_prompt(self, format_info):
+        """生成阳光学院论文格式检查的用户提示词"""
+        prompt = f"""请分析以下论文格式信息，并判断是否符合阳光学院学术论文规范：
+        总段落数：{format_info['paragraphs']}
+        章节数：{format_info['sections']}
+        使用的样式：{', '.join(format_info['styles'])}
+        使用的字体：{', '.join(format_info['fonts'])}
+        行间距：{', '.join(map(str, format_info['spacing']))}
+        页眉信息：{', '.join(format_info['headers']) if format_info['headers'] else '无'}
+        页脚信息：{', '.join(format_info['footers']) if format_info['footers'] else '无'}
+        请详细说明是否存在格式问题，如有需要改进的地方请给出具体建议。"""
+        
+        return prompt
+
+# 格式检查器工厂类
+class FormatCheckerFactory:
+    """论文格式检查器工厂类"""
+    
+    @staticmethod
+    def create_checker(template):
+        """
+        根据模板类型创建相应的格式检查器
+        参数:
+            template: 模板名称，如 'xmu', 'sunshine'
+        返回:
+            FormatChecker实例
+        """
+        if template == 'xmu':
+            return XmuFormatChecker(template)
+        elif template == 'sunshine':
+            return SunshineFormatChecker(template)
+        else:
+            # 默认使用阳光学院模板
+            logger.warning(f'未知模板类型: {template}，使用默认模板sunshine')
+            return SunshineFormatChecker('sunshine')
+
+# 替换原有的get_prompt函数
 def get_prompt(template):
-    """根据模板类型返回对应的提示词"""
-    # 获取当前文件所在目录的上级目录
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # 构建规则文件路径
-    ruler_file = os.path.join(base_dir, 'promots', f'{template}.ruler')
-    
-    # 检查文件是否存在
-    if not os.path.exists(ruler_file):
-        logger.error(f'模板文件 {ruler_file} 不存在')
-        raise FileNotFoundError(f'模板文件 {ruler_file} 不存在')
-    
-    # 读取并返回文件内容
-    with open(ruler_file, 'r', encoding='utf-8') as f:
-        content = f.read().strip()
-        logger.debug(f'已加载模板文件 {ruler_file}')
-        return content
+    """
+    获取模板提示词，保持向后兼容
+    注意：这是过渡函数，应尽量使用FormatCheckerFactory创建检查器
+    """
+    checker = FormatCheckerFactory.create_checker(template)
+    return checker.get_system_prompt()
 
-def extract_docx_info(file_stream):
-    """从docx文件流中提取格式信息"""
-    doc = Document(file_stream)
-    format_info = {
-        "paragraphs": len(doc.paragraphs),
-        "sections": len(doc.sections),
-        "styles": [],
-        "fonts": set(),
-        "spacing": [],
-        "headers": [],
-        "footers": []
-    }
-    
-    for paragraph in doc.paragraphs:
-        if paragraph.style.name not in format_info["styles"]:
-            format_info["styles"].append(paragraph.style.name)
-        
-        # 提取字体信息
-        for run in paragraph.runs:
-            if run.font.name:
-                format_info["fonts"].add(run.font.name)
-        
-        # 提取段落间距信息
-        if paragraph.paragraph_format.line_spacing:
-            format_info["spacing"].append(paragraph.paragraph_format.line_spacing)
-    
-    # 提取页眉页脚信息
-    for section in doc.sections:
-        # 提取页眉
-        header = section.header
-        if header.is_linked_to_previous:
-            continue
-        header_text = '\n'.join(paragraph.text for paragraph in header.paragraphs if paragraph.text)
-        if header_text:
-            format_info["headers"].append(header_text)
-        
-        # 提取页脚
-        footer = section.footer
-        if footer.is_linked_to_previous:
-            continue
-        footer_text = '\n'.join(paragraph.text for paragraph in footer.paragraphs if paragraph.text)
-        if footer_text:
-            format_info["footers"].append(footer_text)
-    
-
-    return format_info
-
+# 更新app路由，使用新的格式检查器工厂
 @app.route('/api/upload', methods=['POST'])
 def check_paper_format():
     """检查论文格式API"""
@@ -150,9 +472,6 @@ def check_paper_format():
         template = request.form.get('template', 'sunshine')
         logger.info(f'收到文件上传请求：{file.filename}, 使用模板：{template}')
         
-        # 初始化format_info变量
-        format_info = None
-        
         try:
             # 读取zip文件内容
             zip_data = io.BytesIO(file.read())
@@ -166,7 +485,11 @@ def check_paper_format():
                 logger.debug(f'找到docx文件：{docx_files[0]}')
                 # 读取docx文件内容
                 docx_content = io.BytesIO(zip_file.read(docx_files[0]))
-                format_info = extract_docx_info(docx_content)
+                
+                # 使用工厂创建格式检查器并检查格式
+                format_checker = FormatCheckerFactory.create_checker(template)
+                system_prompt, user_prompt, format_info = format_checker.check_format(docx_content)
+                
                 logger.debug(f'提取到的格式信息：{format_info}')
                 
                 # 记录上传的文件信息到日志
@@ -185,26 +508,7 @@ def check_paper_format():
         except Exception as e:
             logger.error(f"处理ZIP文件时出错: {str(e)}", exc_info=True)
             return jsonify({'error': f'处理文件时出错: {str(e)}'}), 400
-        
-        # 确保format_info已经被成功提取
-        if format_info is None:
-            logger.error("未能成功提取文件格式信息")
-            return jsonify({'error': '未能成功提取文件格式信息'}), 500
             
-        prefix = get_prompt(template)
-        # logger.debug('已获取提示词模板', str(prefix))
-        logger.debug('已获取提示词模板')
-        # 构建提示词
-        prompt = prefix + f"""请分析以下论文格式信息，并判断是否符合学术论文规范：
-        总段落数：{format_info['paragraphs']}
-        章节数：{format_info['sections']}
-        使用的样式：{', '.join(format_info['styles'])}
-        使用的字体：{', '.join(format_info['fonts'])}
-        行间距：{', '.join(map(str, format_info['spacing']))}
-        页眉信息：{', '.join(format_info['headers']) if format_info['headers'] else '无'}
-        页脚信息：{', '.join(format_info['footers']) if format_info['footers'] else '无'}
-        请详细说明是否存在格式问题，如有需要改进的地方请给出具体建议。"""
-        
         logger.debug('准备发送API请求')
         # 准备API请求数据
         headers = {
@@ -246,16 +550,18 @@ def check_paper_format():
         logger.debug(f"请求URL: {API_BASE}/chat/completions")
         logger.debug(f"使用模型: {MODEL_NAME}")
         
-        # 构建符合 Kimi API 的请求数据
+        # 构建符合 Kimi API 的请求数据，将规则文件内容作为system角色，用户提示作为user角色
         data = {
             "model": MODEL_NAME,
             "messages": [
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             "stream": False,
             "max_tokens": 4096,
             "temperature": 0,
-            "top_p": 0.7
+            "top_p": 1,
+            "top_k": 1
         }
         
         # 发送API请求
