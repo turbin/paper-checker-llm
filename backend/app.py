@@ -504,7 +504,8 @@ class XmuFormatChecker(FormatChecker):
         blind_cover_keywords = ['盲审', '匿名', '评阅']
         format_info["has_blind_cover"] = False
         
-        for i, p in enumerate(doc.paragraphs[:100]):  # 扩大检测范围到前100个段落
+        # 扩大封面检测范围
+        for i, p in enumerate(doc.paragraphs[:150]):  # 扩大检测范围到前150个段落
             if not p.text.strip():
                 continue
                 
@@ -513,23 +514,44 @@ class XmuFormatChecker(FormatChecker):
                 if keyword in p.text:
                     if not format_info["has_cover"]:
                         format_info["has_cover"] = True
+                        logger.debug(f"在第{i}段找到封面信息: {p.text}")
                     format_info["cover_info"][keyword] = p.text
-                    break
             
             # 检查是否包含盲审封面相关信息
             for keyword in blind_cover_keywords:
                 if keyword in p.text:
                     format_info["has_blind_cover"] = True
                     format_info["cover_info"]["盲审封面"] = p.text
-                    break
+                    logger.debug(f"在第{i}段找到盲审封面信息: {p.text}")
                     
             # 尝试识别论文标题（通常是较大字号的文本）
-            if not format_info["title"] and len(p.text) > 5 and len(p.text) < 50:
+            if not format_info["title"] and len(p.text) > 5 and len(p.text) < 100:
+                # 检查是否有特殊格式（如加粗或大字号）
+                has_special_format = False
                 for run in p.runs:
-                    # 如果是大字号文本，可能是标题
-                    if run.font.size and hasattr(run.font.size, 'pt') and run.font.size.pt > 14:
-                        format_info["title"] = p.text
+                    # 如果是大字号文本或加粗文本，可能是标题
+                    if ((run.font.size and hasattr(run.font.size, 'pt') and run.font.size.pt > 14) or
+                        (hasattr(run.font, 'bold') and run.font.bold)):
+                        has_special_format = True
                         break
+                
+                # 检查文本是否符合标题格式（不含特定关键词，不含冒号等）
+                is_title_format = (
+                    not any(kw in p.text for kw in ['摘要', 'Abstract', '目录', 'Contents', '第一章']) and
+                    ':' not in p.text and '：' not in p.text
+                )
+                
+                if has_special_format or is_title_format:
+                    format_info["title"] = p.text
+                    logger.debug(f"在第{i}段找到可能的论文标题: {p.text}")
+        
+        # 记录封面信息的详细内容，便于调试
+        if format_info["has_cover"]:
+            logger.debug(f"已找到封面信息: {format_info['cover_info']}")
+            if format_info["title"]:
+                logger.debug(f"论文标题: {format_info['title']}")
+        else:
+            logger.warning("未找到有效的封面信息")
         
         # 分析段落内容和格式
         for i, p in enumerate(doc.paragraphs):
@@ -568,9 +590,23 @@ class XmuFormatChecker(FormatChecker):
                 table_num = table_match.group(1)
                 table_title = table_match.group(2).strip()
                 
+                # 记录日志
+                logger.debug(f"在第{i}段找到表格: 表{table_num} {table_title}")
+                
                 # 检查格式是否符合要求
                 is_centered = p.alignment == 1  # 1表示居中对齐
                 is_bold = any(run.font.bold for run in p.runs if hasattr(run.font, 'bold') and run.font.bold)
+                
+                # 记录表格格式
+                if is_centered:
+                    logger.debug(f"表格标题居中: 是")
+                else:
+                    logger.debug(f"表格标题居中: 否")
+                    
+                if is_bold:
+                    logger.debug(f"表格标题加粗: 是")
+                else:
+                    logger.debug(f"表格标题加粗: 否")
                 
                 format_info["tables_info"].append({
                     "position": i,
@@ -586,9 +622,23 @@ class XmuFormatChecker(FormatChecker):
                 figure_num = figure_match.group(1)
                 figure_title = figure_match.group(2).strip()
                 
+                # 记录日志
+                logger.debug(f"在第{i}段找到图形: 图{figure_num} {figure_title}")
+                
                 # 检查格式是否符合要求
                 is_centered = p.alignment == 1  # 1表示居中对齐
                 is_bold = any(run.font.bold for run in p.runs if hasattr(run.font, 'bold') and run.font.bold)
+                
+                # 记录图形格式
+                if is_centered:
+                    logger.debug(f"图形标题居中: 是")
+                else:
+                    logger.debug(f"图形标题居中: 否")
+                    
+                if is_bold:
+                    logger.debug(f"图形标题加粗: 是")
+                else:
+                    logger.debug(f"图形标题加粗: 否")
                 
                 format_info["figures_info"].append({
                     "position": i,
@@ -604,6 +654,10 @@ class XmuFormatChecker(FormatChecker):
                 equation_match = equation_pattern.search(text)
                 equation_num = equation_match.group(0) if equation_match else ""
                 
+                logger.debug(f"在第{i}段找到公式: '{text}'")
+                if equation_num:
+                    logger.debug(f"公式编号: {equation_num}")
+                
                 format_info["equations_info"].append({
                     "position": i,
                     "text": text,
@@ -612,6 +666,8 @@ class XmuFormatChecker(FormatChecker):
             # 识别带有数学符号的公式
             elif any(symbol in text for symbol in ['∑', '∫', '∏', '√', '∞', '∂', '∇', '∆', '≠', '≥', '≤']):
                 format_info["equations_count"] += 1
+                logger.debug(f"在第{i}段找到数学符号公式: '{text}'")
+                
                 format_info["equations_info"].append({
                     "position": i,
                     "text": text,
@@ -620,33 +676,69 @@ class XmuFormatChecker(FormatChecker):
             # 识别形如 (1-1), (1.1), (A-1) 等可能是公式编号的模式
             elif re.search(r'\(\s*[A-Za-z0-9]+[-\.][0-9]+\s*\)', text):
                 format_info["equations_count"] += 1
+                equation_num = re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                logger.debug(f"在第{i}段找到带编号公式: '{text}'")
+                logger.debug(f"公式编号: {equation_num}")
+                
                 format_info["equations_info"].append({
                     "position": i,
                     "text": text,
-                    "number": re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                    "number": equation_num
                 })
             
             # 尝试识别摘要 - 增强识别能力
             # 使用正则表达式匹配可能含有空格或其他非显示字符的标题
             abstract_pattern = re.compile(r'^[\s\u200b]*([摘提][\s\u200b]{0,4}[要约])[\s\u200b]*[:：]?$')
-            if not abstract_found and (abstract_pattern.match(text) or text.strip() in ['摘要', '摘　要', '摘 要'] or any(keyword in text[:20] for keyword in ['内容摘要', '中文摘要', '论文摘要'])):
+            
+            # 更精确地匹配各种摘要标题格式
+            is_abstract_title = (
+                abstract_pattern.match(text) or 
+                text.strip() in ['摘要', '摘　要', '摘 要', '内容摘要', '中文摘要', '论文摘要'] or
+                (text.startswith('摘') and text.endswith('要') and len(text) < 10)
+            )
+            
+            if not abstract_found and is_abstract_title:
                 if len(text) < 30:  # 确保只是标题，不是内容
                     abstract_found = True
-                    # 收集接下来的段落作为摘要
-                    abstract_paragraphs = []
-                    for j in range(1, 5):  # 检查接下来的5个段落
-                        if i + j < len(doc.paragraphs):
-                            next_para = doc.paragraphs[i + j].text.strip()
-                            if next_para and '关键词' not in next_para and len(next_para) > 20:
-                                abstract_paragraphs.append(next_para)
-                            elif '关键词' in next_para:
-                                break
+                    abstract_start_pos = i
+                    logger.debug(f"在第{i}段找到中文摘要标题: '{text}'")
                     
+                    # 收集接下来的段落作为摘要，直到遇到关键词部分
+                    abstract_paragraphs = []
+                    j = i + 1
+                    keyword_found = False
+                    
+                    # 向下查找直到找到关键词或超出合理范围
+                    while j < min(i + 20, len(doc.paragraphs)) and not keyword_found:
+                        next_text = doc.paragraphs[j].text.strip()
+                        # 如果找到关键词行，停止收集
+                        if '关键词' in next_text or '关键字' in next_text:
+                            keyword_found = True
+                            logger.debug(f"在第{j}段找到关键词标志，摘要结束: '{next_text}'")
+                            break
+                        # 否则，如果是非空行，添加到摘要段落
+                        elif next_text and len(next_text) > 10:  # 忽略太短的行
+                            abstract_paragraphs.append(next_text)
+                            logger.debug(f"添加摘要内容: 第{j}段 ({len(next_text)}字符)")
+                        j += 1
+                    
+                    # 如果找到摘要内容，处理并计算字数
                     if abstract_paragraphs:
                         format_info["abstract"] = " ".join(abstract_paragraphs)
                         format_info["abstract_paragraphs"] = abstract_paragraphs
+                        
                         # 计算摘要的中文字数（而不是字符数）
-                        format_info["abstract_word_count"] = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        chinese_chars = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        format_info["abstract_word_count"] = chinese_chars
+                        
+                        logger.debug(f"中文摘要总长度: {len(format_info['abstract'])}字符")
+                        logger.debug(f"中文摘要字数: {chinese_chars}字")
+                        
+                        # 如果字数明显偏少，记录警告
+                        if chinese_chars < 300:
+                            logger.warning(f"警告: 中文摘要仅有{chinese_chars}字，可能不符合要求(约600字)")
+                    else:
+                        logger.warning("找到摘要标题但未找到有效摘要内容")
             
             # 尝试识别英文摘要 - 增强识别能力
             abstract_eng_pattern = re.compile(r'^[\s\u200b]*A[\s\u200b]*b[\s\u200b]*s[\s\u200b]*t[\s\u200b]*r[\s\u200b]*a[\s\u200b]*c[\s\u200b]*t[\s\u200b]*[:：]?$', re.IGNORECASE)
@@ -703,30 +795,59 @@ class XmuFormatChecker(FormatChecker):
             
             # 检查目录 - 加强检测逻辑
             toc_pattern = re.compile(r'^[\s\u200b]*目[\s\u200b]*录[\s\u200b]*$')
-            if toc_pattern.match(text) or text.strip() in ['目录', '目  录', '目   录']:
+            is_toc_title = (
+                toc_pattern.match(text) or 
+                text.strip() in ['目录', '目  录', '目   录', '目　录'] or
+                (text.startswith('目') and text.endswith('录') and len(text) < 10)
+            )
+            
+            if is_toc_title:
                 format_info["has_toc"] = True
                 format_info["toc_info"]["type"] = "中文目录"
                 format_info["toc_info"]["position"] = i
+                logger.debug(f"在第{i}段找到中文目录标题: '{text}'")
                 
                 # 收集目录内容示例
                 toc_items = []
-                for j in range(1, 20):  # 增加检查范围至20个段落
+                for j in range(1, 30):  # 增加检查范围至30个段落
                     if i + j < len(doc.paragraphs):
                         next_para = doc.paragraphs[i + j].text.strip()
-                        if next_para:
-                            # 检查是否是典型的目录项格式: 标题...页码
-                            if re.search(r'.*\.*\s*\d+$', next_para) or re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para):
-                                toc_items.append(next_para)
-                            elif len(toc_items) > 0 and not next_para.startswith('Contents') and not re.match(r'^Abstract', next_para):
-                                # 如果已经找到目录项，并且当前段落不是新的章节开始，继续添加
-                                toc_items.append(next_para)
-                            elif len(toc_items) > 3:
-                                # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
-                                break
+                        if not next_para:
+                            continue  # 跳过空行
+                            
+                        # 如果遇到"Contents"或"致谢"等新章节标记，则认为目录结束
+                        if next_para.lower() in ['contents', 'abstract', '致谢', '参考文献', '附录'] or next_para.startswith('第一章'):
+                            logger.debug(f"在第{i+j}段遇到新章节标记'{next_para}'，中文目录结束")
+                            break
+                            
+                        # 检查是否是典型的目录项格式
+                        is_toc_item = (
+                            # 标题...页码 格式
+                            re.search(r'.*\.*\s*\d+$', next_para) or 
+                            # 章节标题格式
+                            re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para) or
+                            # 其他可能的目录项
+                            re.search(r'^[一二三四五六七八九十][、\s]', next_para) or
+                            re.search(r'^[0-9]+(\.[0-9]+)*\s', next_para)
+                        )
                         
+                        if is_toc_item:
+                            toc_items.append(next_para)
+                            logger.debug(f"添加目录项: '{next_para[:30]}...'")
+                        elif len(toc_items) > 0 and not next_para.lower().startswith('contents'):
+                            # 可能是目录项的延续
+                            toc_items.append(next_para)
+                            logger.debug(f"添加可能的目录项延续: '{next_para[:30]}...'")
+                        elif len(toc_items) > 5:
+                            # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
+                            break
+                
                 if toc_items:
-                    format_info["toc_info"]["items"] = toc_items[:10]  # 保存前10项作为示例
+                    format_info["toc_info"]["items"] = toc_items[:15]  # 保存前15项作为示例
                     format_info["toc_info"]["items_count"] = len(toc_items)
+                    logger.debug(f"找到{len(toc_items)}个中文目录项")
+                else:
+                    logger.warning("找到目录标题但未找到有效目录项")
         
         # 统计页边距
         margins_count = {}
@@ -853,27 +974,94 @@ class XmuFormatChecker(FormatChecker):
             # 增强公式识别逻辑
             if '公式' in text or equation_pattern.search(text):
                 format_info["equations_count"] += 1
+                equation_match = equation_pattern.search(text)
+                equation_num = equation_match.group(0) if equation_match else ""
+                
+                logger.debug(f"在第{i}段找到公式: '{text}'")
+                if equation_num:
+                    logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
             # 识别带有数学符号的公式
             elif any(symbol in text for symbol in ['∑', '∫', '∏', '√', '∞', '∂', '∇', '∆', '≠', '≥', '≤']):
                 format_info["equations_count"] += 1
+                logger.debug(f"在第{i}段找到数学符号公式: '{text}'")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": ""
+                })
             # 识别形如 (1-1), (1.1), (A-1) 等可能是公式编号的模式
             elif re.search(r'\(\s*[A-Za-z0-9]+[-\.][0-9]+\s*\)', text):
                 format_info["equations_count"] += 1
+                equation_num = re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                logger.debug(f"在第{i}段找到带编号公式: '{text}'")
+                logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
             
             # 尝试识别摘要 - 增强识别能力
             # 使用正则表达式匹配可能含有空格或其他非显示字符的标题
             abstract_pattern = re.compile(r'^[\s\u200b]*([摘提][\s\u200b]{0,4}[要约])[\s\u200b]*[:：]?$')
-            if abstract_pattern.match(text) or any(keyword in text[:20] for keyword in ['内容摘要', '中文摘要', '论文摘要']):
+            
+            # 更精确地匹配各种摘要标题格式
+            is_abstract_title = (
+                abstract_pattern.match(text) or 
+                text.strip() in ['摘要', '摘　要', '摘 要', '内容摘要', '中文摘要', '论文摘要'] or
+                (text.startswith('摘') and text.endswith('要') and len(text) < 10)
+            )
+            
+            if not abstract_found and is_abstract_title:
                 if len(text) < 30:  # 确保只是标题，不是内容
-                    # 尝试获取下一段的内容作为摘要
-                    for j in range(1, 5):  # 检查接下来的5个段落
-                        if i + j < len(doc.paragraphs):
-                            next_para = doc.paragraphs[i + j].text.strip()
-                            if next_para and len(next_para) > 50:  # 确保摘要有足够的长度
-                                format_info["abstract"] = next_para
-                                # 计算摘要的中文字数（而不是字符数）
-                                format_info["abstract_word_count"] = sum(1 for c in next_para if '\u4e00' <= c <= '\u9fff')
-                                break
+                    abstract_found = True
+                    abstract_start_pos = i
+                    logger.debug(f"在第{i}段找到中文摘要标题: '{text}'")
+                    
+                    # 收集接下来的段落作为摘要，直到遇到关键词部分
+                    abstract_paragraphs = []
+                    j = i + 1
+                    keyword_found = False
+                    
+                    # 向下查找直到找到关键词或超出合理范围
+                    while j < min(i + 20, len(doc.paragraphs)) and not keyword_found:
+                        next_text = doc.paragraphs[j].text.strip()
+                        # 如果找到关键词行，停止收集
+                        if '关键词' in next_text or '关键字' in next_text:
+                            keyword_found = True
+                            logger.debug(f"在第{j}段找到关键词标志，摘要结束: '{next_text}'")
+                            break
+                        # 否则，如果是非空行，添加到摘要段落
+                        elif next_text and len(next_text) > 10:  # 忽略太短的行
+                            abstract_paragraphs.append(next_text)
+                            logger.debug(f"添加摘要内容: 第{j}段 ({len(next_text)}字符)")
+                        j += 1
+                    
+                    # 如果找到摘要内容，处理并计算字数
+                    if abstract_paragraphs:
+                        format_info["abstract"] = " ".join(abstract_paragraphs)
+                        format_info["abstract_paragraphs"] = abstract_paragraphs
+                        
+                        # 计算摘要的中文字数（而不是字符数）
+                        chinese_chars = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        format_info["abstract_word_count"] = chinese_chars
+                        
+                        logger.debug(f"中文摘要总长度: {len(format_info['abstract'])}字符")
+                        logger.debug(f"中文摘要字数: {chinese_chars}字")
+                        
+                        # 如果字数明显偏少，记录警告
+                        if chinese_chars < 300:
+                            logger.warning(f"警告: 中文摘要仅有{chinese_chars}字，可能不符合要求(约600字)")
+                    else:
+                        logger.warning("找到摘要标题但未找到有效摘要内容")
             
             # 尝试识别英文摘要 - 增强识别能力
             abstract_eng_pattern = re.compile(r'^[\s\u200b]*A[\s\u200b]*b[\s\u200b]*s[\s\u200b]*t[\s\u200b]*r[\s\u200b]*a[\s\u200b]*c[\s\u200b]*t[\s\u200b]*[:：]?$', re.IGNORECASE)
@@ -921,30 +1109,1001 @@ class XmuFormatChecker(FormatChecker):
             
             # 检查目录 - 加强检测逻辑
             toc_pattern = re.compile(r'^[\s\u200b]*目[\s\u200b]*录[\s\u200b]*$')
-            if toc_pattern.match(text) or text.strip() in ['目录', '目  录', '目   录']:
+            is_toc_title = (
+                toc_pattern.match(text) or 
+                text.strip() in ['目录', '目  录', '目   录', '目　录'] or
+                (text.startswith('目') and text.endswith('录') and len(text) < 10)
+            )
+            
+            if is_toc_title:
                 format_info["has_toc"] = True
                 format_info["toc_info"]["type"] = "中文目录"
                 format_info["toc_info"]["position"] = i
+                logger.debug(f"在第{i}段找到中文目录标题: '{text}'")
                 
                 # 收集目录内容示例
                 toc_items = []
-                for j in range(1, 20):  # 增加检查范围至20个段落
+                for j in range(1, 30):  # 增加检查范围至30个段落
                     if i + j < len(doc.paragraphs):
                         next_para = doc.paragraphs[i + j].text.strip()
-                        if next_para:
-                            # 检查是否是典型的目录项格式: 标题...页码
-                            if re.search(r'.*\.*\s*\d+$', next_para) or re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para):
-                                toc_items.append(next_para)
-                            elif len(toc_items) > 0 and not next_para.startswith('Contents') and not re.match(r'^Abstract', next_para):
-                                # 如果已经找到目录项，并且当前段落不是新的章节开始，继续添加
-                                toc_items.append(next_para)
-                            elif len(toc_items) > 3:
-                                # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
-                                break
+                        if not next_para:
+                            continue  # 跳过空行
+                            
+                        # 如果遇到"Contents"或"致谢"等新章节标记，则认为目录结束
+                        if next_para.lower() in ['contents', 'abstract', '致谢', '参考文献', '附录'] or next_para.startswith('第一章'):
+                            logger.debug(f"在第{i+j}段遇到新章节标记'{next_para}'，中文目录结束")
+                            break
+                            
+                        # 检查是否是典型的目录项格式
+                        is_toc_item = (
+                            # 标题...页码 格式
+                            re.search(r'.*\.*\s*\d+$', next_para) or 
+                            # 章节标题格式
+                            re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para) or
+                            # 其他可能的目录项
+                            re.search(r'^[一二三四五六七八九十][、\s]', next_para) or
+                            re.search(r'^[0-9]+(\.[0-9]+)*\s', next_para)
+                        )
                         
+                        if is_toc_item:
+                            toc_items.append(next_para)
+                            logger.debug(f"添加目录项: '{next_para[:30]}...'")
+                        elif len(toc_items) > 0 and not next_para.lower().startswith('contents'):
+                            # 可能是目录项的延续
+                            toc_items.append(next_para)
+                            logger.debug(f"添加可能的目录项延续: '{next_para[:30]}...'")
+                        elif len(toc_items) > 5:
+                            # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
+                            break
+                
                 if toc_items:
-                    format_info["toc_info"]["items"] = toc_items[:10]  # 保存前10项作为示例
+                    format_info["toc_info"]["items"] = toc_items[:15]  # 保存前15项作为示例
                     format_info["toc_info"]["items_count"] = len(toc_items)
+                    logger.debug(f"找到{len(toc_items)}个中文目录项")
+                else:
+                    logger.warning("找到目录标题但未找到有效目录项")
+        
+        # 统计页边距
+        margins_count = {}
+        
+        # 检查表格数量
+        format_info["tables_count"] = len(doc.tables)
+        
+        # 检查封面信息
+        logger.debug("检查封面信息")
+        cover_keywords = ['学校编码', '学号', '作者', '专业', '导师', '学位论文']
+        blind_cover_keywords = ['盲审', '匿名', '评阅']
+        format_info["has_blind_cover"] = False
+        
+        for i, p in enumerate(doc.paragraphs[:100]):  # 扩大检测范围到前100个段落
+            if not p.text.strip():
+                continue
+                
+            # 检查是否包含典型的封面信息词语
+            for keyword in cover_keywords:
+                if keyword in p.text:
+                    if not format_info["has_cover"]:
+                        format_info["has_cover"] = True
+                    format_info["cover_info"][keyword] = p.text
+                    break
+            
+            # 检查是否包含盲审封面相关信息
+            for keyword in blind_cover_keywords:
+                if keyword in p.text:
+                    format_info["has_blind_cover"] = True
+                    format_info["cover_info"]["盲审封面"] = p.text
+                    break
+                    
+            # 尝试识别论文标题（通常是较大字号的文本）
+            if not format_info["title"] and len(p.text) > 5 and len(p.text) < 50:
+                for run in p.runs:
+                    # 如果是大字号文本，可能是标题
+                    if run.font.size and hasattr(run.font.size, 'pt') and run.font.size.pt > 14:
+                        format_info["title"] = p.text
+                        break
+        
+        # 遍历所有段落
+        logger.debug("分析文档段落格式")
+        
+        # 检查图形、公式、目录、参考文献、附录和致谢
+        figure_pattern = re.compile(r'图\s*\d+')
+        equation_pattern = re.compile(r'\(\d+\-\d+\)')
+        ref_items = []
+        
+        for i, paragraph in enumerate(doc.paragraphs):
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            
+            # 记录段落样式使用情况
+            if hasattr(paragraph, 'style') and paragraph.style:
+                style_name = paragraph.style.name
+                format_info["paragraph_styles"][style_name] = format_info["paragraph_styles"].get(style_name, 0) + 1
+            
+            # 获取段落的有效格式信息
+            para_format = get_effective_paragraph_format(paragraph, doc)
+            
+            # 收集字体信息
+            if para_format.get('font_name'):
+                format_info["fonts"].add(para_format['font_name'])
+            
+            # 收集字体大小信息
+            if para_format.get('font_size'):
+                font_size = para_format['font_size']
+                if font_size and 5 < font_size < 100:  # 过滤不合理的字体大小
+                    format_info["font_sizes"].add(font_size)
+            
+            # 收集行间距信息
+            if para_format.get('line_spacing'):
+                line_spacing = para_format['line_spacing']
+                if line_spacing and 0 < line_spacing < 10:  # 过滤不合理的行间距
+                    if line_spacing not in format_info["spacing"]:
+                        format_info["spacing"].append(line_spacing)
+            
+            # 收集首行缩进信息
+            if para_format.get('first_line_indent'):
+                first_indent = para_format['first_line_indent']
+                if first_indent and 0 < first_indent < 300:  # 过滤不合理的缩进值
+                    format_info["first_line_indents"].add(first_indent)
+            
+            # 处理运行级别的格式（用于补充继承样式可能漏掉的信息）
+            for run in paragraph.runs:
+                if not run.text.strip():
+                    continue
+                
+                # 收集字体信息
+                if run.font.name:
+                    format_info["fonts"].add(run.font.name)
+                
+                # 收集字体大小信息
+                if run.font.size:
+                    try:
+                        size = run.font.size.pt if hasattr(run.font.size, 'pt') else None
+                        if size and 5 < size < 100:  # 过滤不合理的字体大小
+                            format_info["font_sizes"].add(size)
+                    except:
+                        pass
+            
+            # 识别标题级别
+            if paragraph.style and ("heading" in paragraph.style.name.lower() or "标题" in paragraph.style.name):
+                heading_level = 0
+                if paragraph.style.name == 'Heading 1' or paragraph.style.name == '标题 1':
+                    heading_level = 1
+                    format_info["chapter_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 2' or paragraph.style.name == '标题 2':
+                    heading_level = 2
+                    format_info["section_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 3' or paragraph.style.name == '标题 3':
+                    heading_level = 3
+                    format_info["subsection_titles"].append(paragraph.text)
+                
+                # 如果前几段是空的，可能第一个非空段落是标题
+                if not format_info["title"] and heading_level == 1 and len(format_info["chapter_titles"]) == 1:
+                    format_info["title"] = paragraph.text
+            
+            # 识别图形和公式
+            if figure_pattern.search(text):
+                format_info["figures_count"] += 1
+            
+            # 增强公式识别逻辑
+            if '公式' in text or equation_pattern.search(text):
+                format_info["equations_count"] += 1
+                equation_match = equation_pattern.search(text)
+                equation_num = equation_match.group(0) if equation_match else ""
+                
+                logger.debug(f"在第{i}段找到公式: '{text}'")
+                if equation_num:
+                    logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            # 识别带有数学符号的公式
+            elif any(symbol in text for symbol in ['∑', '∫', '∏', '√', '∞', '∂', '∇', '∆', '≠', '≥', '≤']):
+                format_info["equations_count"] += 1
+                logger.debug(f"在第{i}段找到数学符号公式: '{text}'")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": ""
+                })
+            # 识别形如 (1-1), (1.1), (A-1) 等可能是公式编号的模式
+            elif re.search(r'\(\s*[A-Za-z0-9]+[-\.][0-9]+\s*\)', text):
+                format_info["equations_count"] += 1
+                equation_num = re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                logger.debug(f"在第{i}段找到带编号公式: '{text}'")
+                logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            
+            # 尝试识别摘要 - 增强识别能力
+            # 使用正则表达式匹配可能含有空格或其他非显示字符的标题
+            abstract_pattern = re.compile(r'^[\s\u200b]*([摘提][\s\u200b]{0,4}[要约])[\s\u200b]*[:：]?$')
+            
+            # 更精确地匹配各种摘要标题格式
+            is_abstract_title = (
+                abstract_pattern.match(text) or 
+                text.strip() in ['摘要', '摘　要', '摘 要', '内容摘要', '中文摘要', '论文摘要'] or
+                (text.startswith('摘') and text.endswith('要') and len(text) < 10)
+            )
+            
+            if not abstract_found and is_abstract_title:
+                if len(text) < 30:  # 确保只是标题，不是内容
+                    abstract_found = True
+                    abstract_start_pos = i
+                    logger.debug(f"在第{i}段找到中文摘要标题: '{text}'")
+                    
+                    # 收集接下来的段落作为摘要，直到遇到关键词部分
+                    abstract_paragraphs = []
+                    j = i + 1
+                    keyword_found = False
+                    
+                    # 向下查找直到找到关键词或超出合理范围
+                    while j < min(i + 20, len(doc.paragraphs)) and not keyword_found:
+                        next_text = doc.paragraphs[j].text.strip()
+                        # 如果找到关键词行，停止收集
+                        if '关键词' in next_text or '关键字' in next_text:
+                            keyword_found = True
+                            logger.debug(f"在第{j}段找到关键词标志，摘要结束: '{next_text}'")
+                            break
+                        # 否则，如果是非空行，添加到摘要段落
+                        elif next_text and len(next_text) > 10:  # 忽略太短的行
+                            abstract_paragraphs.append(next_text)
+                            logger.debug(f"添加摘要内容: 第{j}段 ({len(next_text)}字符)")
+                        j += 1
+                    
+                    # 如果找到摘要内容，处理并计算字数
+                    if abstract_paragraphs:
+                        format_info["abstract"] = " ".join(abstract_paragraphs)
+                        format_info["abstract_paragraphs"] = abstract_paragraphs
+                        
+                        # 计算摘要的中文字数（而不是字符数）
+                        chinese_chars = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        format_info["abstract_word_count"] = chinese_chars
+                        
+                        logger.debug(f"中文摘要总长度: {len(format_info['abstract'])}字符")
+                        logger.debug(f"中文摘要字数: {chinese_chars}字")
+                        
+                        # 如果字数明显偏少，记录警告
+                        if chinese_chars < 300:
+                            logger.warning(f"警告: 中文摘要仅有{chinese_chars}字，可能不符合要求(约600字)")
+                    else:
+                        logger.warning("找到摘要标题但未找到有效摘要内容")
+            
+            # 尝试识别英文摘要 - 增强识别能力
+            abstract_eng_pattern = re.compile(r'^[\s\u200b]*A[\s\u200b]*b[\s\u200b]*s[\s\u200b]*t[\s\u200b]*r[\s\u200b]*a[\s\u200b]*c[\s\u200b]*t[\s\u200b]*[:：]?$', re.IGNORECASE)
+            if abstract_eng_pattern.match(text) and len(text) < 30:
+                # 尝试获取下一段的内容作为英文摘要
+                for j in range(1, 5):  # 检查接下来的5个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if next_para and len(next_para) > 30 and re.match(r'^[A-Za-z\s,\.;"\'\(\)\-]+$', next_para[:30]):
+                            format_info["eng_abstract"] = next_para
+                            format_info["eng_abstract_length"] = len(next_para)
+                            break
+            
+            # 尝试识别关键词
+            keywords_pattern = re.compile(r'^关键[词字][\s:：]*(.+)$')
+            match = keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(1).strip()
+                # 处理不同的分隔符
+                if '；' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('；') if k.strip()]
+                elif ';' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif '，' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('，') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 尝试识别英文关键词
+            eng_keywords_pattern = re.compile(r'^(Key\s*words|Keywords)[\s:：]*(.+)$', re.IGNORECASE)
+            match = eng_keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(2).strip()
+                # 处理不同的分隔符
+                if ';' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 检查目录 - 加强检测逻辑
+            toc_pattern = re.compile(r'^[\s\u200b]*目[\s\u200b]*录[\s\u200b]*$')
+            is_toc_title = (
+                toc_pattern.match(text) or 
+                text.strip() in ['目录', '目  录', '目   录', '目　录'] or
+                (text.startswith('目') and text.endswith('录') and len(text) < 10)
+            )
+            
+            if is_toc_title:
+                format_info["has_toc"] = True
+                format_info["toc_info"]["type"] = "中文目录"
+                format_info["toc_info"]["position"] = i
+                logger.debug(f"在第{i}段找到中文目录标题: '{text}'")
+                
+                # 收集目录内容示例
+                toc_items = []
+                for j in range(1, 30):  # 增加检查范围至30个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if not next_para:
+                            continue  # 跳过空行
+                            
+                        # 如果遇到"Contents"或"致谢"等新章节标记，则认为目录结束
+                        if next_para.lower() in ['contents', 'abstract', '致谢', '参考文献', '附录'] or next_para.startswith('第一章'):
+                            logger.debug(f"在第{i+j}段遇到新章节标记'{next_para}'，中文目录结束")
+                            break
+                            
+                        # 检查是否是典型的目录项格式
+                        is_toc_item = (
+                            # 标题...页码 格式
+                            re.search(r'.*\.*\s*\d+$', next_para) or 
+                            # 章节标题格式
+                            re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para) or
+                            # 其他可能的目录项
+                            re.search(r'^[一二三四五六七八九十][、\s]', next_para) or
+                            re.search(r'^[0-9]+(\.[0-9]+)*\s', next_para)
+                        )
+                        
+                        if is_toc_item:
+                            toc_items.append(next_para)
+                            logger.debug(f"添加目录项: '{next_para[:30]}...'")
+                        elif len(toc_items) > 0 and not next_para.lower().startswith('contents'):
+                            # 可能是目录项的延续
+                            toc_items.append(next_para)
+                            logger.debug(f"添加可能的目录项延续: '{next_para[:30]}...'")
+                        elif len(toc_items) > 5:
+                            # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
+                            break
+                
+                if toc_items:
+                    format_info["toc_info"]["items"] = toc_items[:15]  # 保存前15项作为示例
+                    format_info["toc_info"]["items_count"] = len(toc_items)
+                    logger.debug(f"找到{len(toc_items)}个中文目录项")
+                else:
+                    logger.warning("找到目录标题但未找到有效目录项")
+        
+        # 统计页边距
+        margins_count = {}
+        
+        # 检查表格数量
+        format_info["tables_count"] = len(doc.tables)
+        
+        # 检查封面信息
+        logger.debug("检查封面信息")
+        cover_keywords = ['学校编码', '学号', '作者', '专业', '导师', '学位论文']
+        blind_cover_keywords = ['盲审', '匿名', '评阅']
+        format_info["has_blind_cover"] = False
+        
+        for i, p in enumerate(doc.paragraphs[:100]):  # 扩大检测范围到前100个段落
+            if not p.text.strip():
+                continue
+                
+            # 检查是否包含典型的封面信息词语
+            for keyword in cover_keywords:
+                if keyword in p.text:
+                    if not format_info["has_cover"]:
+                        format_info["has_cover"] = True
+                    format_info["cover_info"][keyword] = p.text
+                    break
+            
+            # 检查是否包含盲审封面相关信息
+            for keyword in blind_cover_keywords:
+                if keyword in p.text:
+                    format_info["has_blind_cover"] = True
+                    format_info["cover_info"]["盲审封面"] = p.text
+                    break
+                    
+            # 尝试识别论文标题（通常是较大字号的文本）
+            if not format_info["title"] and len(p.text) > 5 and len(p.text) < 50:
+                for run in p.runs:
+                    # 如果是大字号文本，可能是标题
+                    if run.font.size and hasattr(run.font.size, 'pt') and run.font.size.pt > 14:
+                        format_info["title"] = p.text
+                        break
+        
+        # 遍历所有段落
+        logger.debug("分析文档段落格式")
+        
+        # 检查图形、公式、目录、参考文献、附录和致谢
+        figure_pattern = re.compile(r'图\s*\d+')
+        equation_pattern = re.compile(r'\(\d+\-\d+\)')
+        ref_items = []
+        
+        for i, paragraph in enumerate(doc.paragraphs):
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            
+            # 记录段落样式使用情况
+            if hasattr(paragraph, 'style') and paragraph.style:
+                style_name = paragraph.style.name
+                format_info["paragraph_styles"][style_name] = format_info["paragraph_styles"].get(style_name, 0) + 1
+            
+            # 获取段落的有效格式信息
+            para_format = get_effective_paragraph_format(paragraph, doc)
+            
+            # 收集字体信息
+            if para_format.get('font_name'):
+                format_info["fonts"].add(para_format['font_name'])
+            
+            # 收集字体大小信息
+            if para_format.get('font_size'):
+                font_size = para_format['font_size']
+                if font_size and 5 < font_size < 100:  # 过滤不合理的字体大小
+                    format_info["font_sizes"].add(font_size)
+            
+            # 收集行间距信息
+            if para_format.get('line_spacing'):
+                line_spacing = para_format['line_spacing']
+                if line_spacing and 0 < line_spacing < 10:  # 过滤不合理的行间距
+                    if line_spacing not in format_info["spacing"]:
+                        format_info["spacing"].append(line_spacing)
+            
+            # 收集首行缩进信息
+            if para_format.get('first_line_indent'):
+                first_indent = para_format['first_line_indent']
+                if first_indent and 0 < first_indent < 300:  # 过滤不合理的缩进值
+                    format_info["first_line_indents"].add(first_indent)
+            
+            # 处理运行级别的格式（用于补充继承样式可能漏掉的信息）
+            for run in paragraph.runs:
+                if not run.text.strip():
+                    continue
+                
+                # 收集字体信息
+                if run.font.name:
+                    format_info["fonts"].add(run.font.name)
+                
+                # 收集字体大小信息
+                if run.font.size:
+                    try:
+                        size = run.font.size.pt if hasattr(run.font.size, 'pt') else None
+                        if size and 5 < size < 100:  # 过滤不合理的字体大小
+                            format_info["font_sizes"].add(size)
+                    except:
+                        pass
+            
+            # 识别标题级别
+            if paragraph.style and ("heading" in paragraph.style.name.lower() or "标题" in paragraph.style.name):
+                heading_level = 0
+                if paragraph.style.name == 'Heading 1' or paragraph.style.name == '标题 1':
+                    heading_level = 1
+                    format_info["chapter_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 2' or paragraph.style.name == '标题 2':
+                    heading_level = 2
+                    format_info["section_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 3' or paragraph.style.name == '标题 3':
+                    heading_level = 3
+                    format_info["subsection_titles"].append(paragraph.text)
+                
+                # 如果前几段是空的，可能第一个非空段落是标题
+                if not format_info["title"] and heading_level == 1 and len(format_info["chapter_titles"]) == 1:
+                    format_info["title"] = paragraph.text
+            
+            # 识别图形和公式
+            if figure_pattern.search(text):
+                format_info["figures_count"] += 1
+            
+            # 增强公式识别逻辑
+            if '公式' in text or equation_pattern.search(text):
+                format_info["equations_count"] += 1
+                equation_match = equation_pattern.search(text)
+                equation_num = equation_match.group(0) if equation_match else ""
+                
+                logger.debug(f"在第{i}段找到公式: '{text}'")
+                if equation_num:
+                    logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            # 识别带有数学符号的公式
+            elif any(symbol in text for symbol in ['∑', '∫', '∏', '√', '∞', '∂', '∇', '∆', '≠', '≥', '≤']):
+                format_info["equations_count"] += 1
+                logger.debug(f"在第{i}段找到数学符号公式: '{text}'")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": ""
+                })
+            # 识别形如 (1-1), (1.1), (A-1) 等可能是公式编号的模式
+            elif re.search(r'\(\s*[A-Za-z0-9]+[-\.][0-9]+\s*\)', text):
+                format_info["equations_count"] += 1
+                equation_num = re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                logger.debug(f"在第{i}段找到带编号公式: '{text}'")
+                logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            
+            # 尝试识别摘要 - 增强识别能力
+            # 使用正则表达式匹配可能含有空格或其他非显示字符的标题
+            abstract_pattern = re.compile(r'^[\s\u200b]*([摘提][\s\u200b]{0,4}[要约])[\s\u200b]*[:：]?$')
+            
+            # 更精确地匹配各种摘要标题格式
+            is_abstract_title = (
+                abstract_pattern.match(text) or 
+                text.strip() in ['摘要', '摘　要', '摘 要', '内容摘要', '中文摘要', '论文摘要'] or
+                (text.startswith('摘') and text.endswith('要') and len(text) < 10)
+            )
+            
+            if not abstract_found and is_abstract_title:
+                if len(text) < 30:  # 确保只是标题，不是内容
+                    abstract_found = True
+                    abstract_start_pos = i
+                    logger.debug(f"在第{i}段找到中文摘要标题: '{text}'")
+                    
+                    # 收集接下来的段落作为摘要，直到遇到关键词部分
+                    abstract_paragraphs = []
+                    j = i + 1
+                    keyword_found = False
+                    
+                    # 向下查找直到找到关键词或超出合理范围
+                    while j < min(i + 20, len(doc.paragraphs)) and not keyword_found:
+                        next_text = doc.paragraphs[j].text.strip()
+                        # 如果找到关键词行，停止收集
+                        if '关键词' in next_text or '关键字' in next_text:
+                            keyword_found = True
+                            logger.debug(f"在第{j}段找到关键词标志，摘要结束: '{next_text}'")
+                            break
+                        # 否则，如果是非空行，添加到摘要段落
+                        elif next_text and len(next_text) > 10:  # 忽略太短的行
+                            abstract_paragraphs.append(next_text)
+                            logger.debug(f"添加摘要内容: 第{j}段 ({len(next_text)}字符)")
+                        j += 1
+                    
+                    # 如果找到摘要内容，处理并计算字数
+                    if abstract_paragraphs:
+                        format_info["abstract"] = " ".join(abstract_paragraphs)
+                        format_info["abstract_paragraphs"] = abstract_paragraphs
+                        
+                        # 计算摘要的中文字数（而不是字符数）
+                        chinese_chars = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        format_info["abstract_word_count"] = chinese_chars
+                        
+                        logger.debug(f"中文摘要总长度: {len(format_info['abstract'])}字符")
+                        logger.debug(f"中文摘要字数: {chinese_chars}字")
+                        
+                        # 如果字数明显偏少，记录警告
+                        if chinese_chars < 300:
+                            logger.warning(f"警告: 中文摘要仅有{chinese_chars}字，可能不符合要求(约600字)")
+                    else:
+                        logger.warning("找到摘要标题但未找到有效摘要内容")
+            
+            # 尝试识别英文摘要 - 增强识别能力
+            abstract_eng_pattern = re.compile(r'^[\s\u200b]*A[\s\u200b]*b[\s\u200b]*s[\s\u200b]*t[\s\u200b]*r[\s\u200b]*a[\s\u200b]*c[\s\u200b]*t[\s\u200b]*[:：]?$', re.IGNORECASE)
+            if abstract_eng_pattern.match(text) and len(text) < 30:
+                # 尝试获取下一段的内容作为英文摘要
+                for j in range(1, 5):  # 检查接下来的5个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if next_para and len(next_para) > 30 and re.match(r'^[A-Za-z\s,\.;"\'\(\)\-]+$', next_para[:30]):
+                            format_info["eng_abstract"] = next_para
+                            format_info["eng_abstract_length"] = len(next_para)
+                            break
+            
+            # 尝试识别关键词
+            keywords_pattern = re.compile(r'^关键[词字][\s:：]*(.+)$')
+            match = keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(1).strip()
+                # 处理不同的分隔符
+                if '；' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('；') if k.strip()]
+                elif ';' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif '，' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('，') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 尝试识别英文关键词
+            eng_keywords_pattern = re.compile(r'^(Key\s*words|Keywords)[\s:：]*(.+)$', re.IGNORECASE)
+            match = eng_keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(2).strip()
+                # 处理不同的分隔符
+                if ';' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 检查目录 - 加强检测逻辑
+            toc_pattern = re.compile(r'^[\s\u200b]*目[\s\u200b]*录[\s\u200b]*$')
+            is_toc_title = (
+                toc_pattern.match(text) or 
+                text.strip() in ['目录', '目  录', '目   录', '目　录'] or
+                (text.startswith('目') and text.endswith('录') and len(text) < 10)
+            )
+            
+            if is_toc_title:
+                format_info["has_toc"] = True
+                format_info["toc_info"]["type"] = "中文目录"
+                format_info["toc_info"]["position"] = i
+                logger.debug(f"在第{i}段找到中文目录标题: '{text}'")
+                
+                # 收集目录内容示例
+                toc_items = []
+                for j in range(1, 30):  # 增加检查范围至30个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if not next_para:
+                            continue  # 跳过空行
+                            
+                        # 如果遇到"Contents"或"致谢"等新章节标记，则认为目录结束
+                        if next_para.lower() in ['contents', 'abstract', '致谢', '参考文献', '附录'] or next_para.startswith('第一章'):
+                            logger.debug(f"在第{i+j}段遇到新章节标记'{next_para}'，中文目录结束")
+                            break
+                            
+                        # 检查是否是典型的目录项格式
+                        is_toc_item = (
+                            # 标题...页码 格式
+                            re.search(r'.*\.*\s*\d+$', next_para) or 
+                            # 章节标题格式
+                            re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para) or
+                            # 其他可能的目录项
+                            re.search(r'^[一二三四五六七八九十][、\s]', next_para) or
+                            re.search(r'^[0-9]+(\.[0-9]+)*\s', next_para)
+                        )
+                        
+                        if is_toc_item:
+                            toc_items.append(next_para)
+                            logger.debug(f"添加目录项: '{next_para[:30]}...'")
+                        elif len(toc_items) > 0 and not next_para.lower().startswith('contents'):
+                            # 可能是目录项的延续
+                            toc_items.append(next_para)
+                            logger.debug(f"添加可能的目录项延续: '{next_para[:30]}...'")
+                        elif len(toc_items) > 5:
+                            # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
+                            break
+                
+                if toc_items:
+                    format_info["toc_info"]["items"] = toc_items[:15]  # 保存前15项作为示例
+                    format_info["toc_info"]["items_count"] = len(toc_items)
+                    logger.debug(f"找到{len(toc_items)}个中文目录项")
+                else:
+                    logger.warning("找到目录标题但未找到有效目录项")
+        
+        # 统计页边距
+        margins_count = {}
+        
+        # 检查表格数量
+        format_info["tables_count"] = len(doc.tables)
+        
+        # 检查封面信息
+        logger.debug("检查封面信息")
+        cover_keywords = ['学校编码', '学号', '作者', '专业', '导师', '学位论文']
+        blind_cover_keywords = ['盲审', '匿名', '评阅']
+        format_info["has_blind_cover"] = False
+        
+        for i, p in enumerate(doc.paragraphs[:100]):  # 扩大检测范围到前100个段落
+            if not p.text.strip():
+                continue
+                
+            # 检查是否包含典型的封面信息词语
+            for keyword in cover_keywords:
+                if keyword in p.text:
+                    if not format_info["has_cover"]:
+                        format_info["has_cover"] = True
+                    format_info["cover_info"][keyword] = p.text
+                    break
+            
+            # 检查是否包含盲审封面相关信息
+            for keyword in blind_cover_keywords:
+                if keyword in p.text:
+                    format_info["has_blind_cover"] = True
+                    format_info["cover_info"]["盲审封面"] = p.text
+                    break
+                    
+            # 尝试识别论文标题（通常是较大字号的文本）
+            if not format_info["title"] and len(p.text) > 5 and len(p.text) < 50:
+                for run in p.runs:
+                    # 如果是大字号文本，可能是标题
+                    if run.font.size and hasattr(run.font.size, 'pt') and run.font.size.pt > 14:
+                        format_info["title"] = p.text
+                        break
+        
+        # 遍历所有段落
+        logger.debug("分析文档段落格式")
+        
+        # 检查图形、公式、目录、参考文献、附录和致谢
+        figure_pattern = re.compile(r'图\s*\d+')
+        equation_pattern = re.compile(r'\(\d+\-\d+\)')
+        ref_items = []
+        
+        for i, paragraph in enumerate(doc.paragraphs):
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            
+            # 记录段落样式使用情况
+            if hasattr(paragraph, 'style') and paragraph.style:
+                style_name = paragraph.style.name
+                format_info["paragraph_styles"][style_name] = format_info["paragraph_styles"].get(style_name, 0) + 1
+            
+            # 获取段落的有效格式信息
+            para_format = get_effective_paragraph_format(paragraph, doc)
+            
+            # 收集字体信息
+            if para_format.get('font_name'):
+                format_info["fonts"].add(para_format['font_name'])
+            
+            # 收集字体大小信息
+            if para_format.get('font_size'):
+                font_size = para_format['font_size']
+                if font_size and 5 < font_size < 100:  # 过滤不合理的字体大小
+                    format_info["font_sizes"].add(font_size)
+            
+            # 收集行间距信息
+            if para_format.get('line_spacing'):
+                line_spacing = para_format['line_spacing']
+                if line_spacing and 0 < line_spacing < 10:  # 过滤不合理的行间距
+                    if line_spacing not in format_info["spacing"]:
+                        format_info["spacing"].append(line_spacing)
+            
+            # 收集首行缩进信息
+            if para_format.get('first_line_indent'):
+                first_indent = para_format['first_line_indent']
+                if first_indent and 0 < first_indent < 300:  # 过滤不合理的缩进值
+                    format_info["first_line_indents"].add(first_indent)
+            
+            # 处理运行级别的格式（用于补充继承样式可能漏掉的信息）
+            for run in paragraph.runs:
+                if not run.text.strip():
+                    continue
+                
+                # 收集字体信息
+                if run.font.name:
+                    format_info["fonts"].add(run.font.name)
+                
+                # 收集字体大小信息
+                if run.font.size:
+                    try:
+                        size = run.font.size.pt if hasattr(run.font.size, 'pt') else None
+                        if size and 5 < size < 100:  # 过滤不合理的字体大小
+                            format_info["font_sizes"].add(size)
+                    except:
+                        pass
+            
+            # 识别标题级别
+            if paragraph.style and ("heading" in paragraph.style.name.lower() or "标题" in paragraph.style.name):
+                heading_level = 0
+                if paragraph.style.name == 'Heading 1' or paragraph.style.name == '标题 1':
+                    heading_level = 1
+                    format_info["chapter_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 2' or paragraph.style.name == '标题 2':
+                    heading_level = 2
+                    format_info["section_titles"].append(paragraph.text)
+                elif paragraph.style.name == 'Heading 3' or paragraph.style.name == '标题 3':
+                    heading_level = 3
+                    format_info["subsection_titles"].append(paragraph.text)
+                
+                # 如果前几段是空的，可能第一个非空段落是标题
+                if not format_info["title"] and heading_level == 1 and len(format_info["chapter_titles"]) == 1:
+                    format_info["title"] = paragraph.text
+            
+            # 识别图形和公式
+            if figure_pattern.search(text):
+                format_info["figures_count"] += 1
+            
+            # 增强公式识别逻辑
+            if '公式' in text or equation_pattern.search(text):
+                format_info["equations_count"] += 1
+                equation_match = equation_pattern.search(text)
+                equation_num = equation_match.group(0) if equation_match else ""
+                
+                logger.debug(f"在第{i}段找到公式: '{text}'")
+                if equation_num:
+                    logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            # 识别带有数学符号的公式
+            elif any(symbol in text for symbol in ['∑', '∫', '∏', '√', '∞', '∂', '∇', '∆', '≠', '≥', '≤']):
+                format_info["equations_count"] += 1
+                logger.debug(f"在第{i}段找到数学符号公式: '{text}'")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": ""
+                })
+            # 识别形如 (1-1), (1.1), (A-1) 等可能是公式编号的模式
+            elif re.search(r'\(\s*[A-Za-z0-9]+[-\.][0-9]+\s*\)', text):
+                format_info["equations_count"] += 1
+                equation_num = re.search(r'\(\s*([A-Za-z0-9]+[-\.][0-9]+)\s*\)', text).group(1)
+                logger.debug(f"在第{i}段找到带编号公式: '{text}'")
+                logger.debug(f"公式编号: {equation_num}")
+                
+                format_info["equations_info"].append({
+                    "position": i,
+                    "text": text,
+                    "number": equation_num
+                })
+            
+            # 尝试识别摘要 - 增强识别能力
+            # 使用正则表达式匹配可能含有空格或其他非显示字符的标题
+            abstract_pattern = re.compile(r'^[\s\u200b]*([摘提][\s\u200b]{0,4}[要约])[\s\u200b]*[:：]?$')
+            
+            # 更精确地匹配各种摘要标题格式
+            is_abstract_title = (
+                abstract_pattern.match(text) or 
+                text.strip() in ['摘要', '摘　要', '摘 要', '内容摘要', '中文摘要', '论文摘要'] or
+                (text.startswith('摘') and text.endswith('要') and len(text) < 10)
+            )
+            
+            if not abstract_found and is_abstract_title:
+                if len(text) < 30:  # 确保只是标题，不是内容
+                    abstract_found = True
+                    abstract_start_pos = i
+                    logger.debug(f"在第{i}段找到中文摘要标题: '{text}'")
+                    
+                    # 收集接下来的段落作为摘要，直到遇到关键词部分
+                    abstract_paragraphs = []
+                    j = i + 1
+                    keyword_found = False
+                    
+                    # 向下查找直到找到关键词或超出合理范围
+                    while j < min(i + 20, len(doc.paragraphs)) and not keyword_found:
+                        next_text = doc.paragraphs[j].text.strip()
+                        # 如果找到关键词行，停止收集
+                        if '关键词' in next_text or '关键字' in next_text:
+                            keyword_found = True
+                            logger.debug(f"在第{j}段找到关键词标志，摘要结束: '{next_text}'")
+                            break
+                        # 否则，如果是非空行，添加到摘要段落
+                        elif next_text and len(next_text) > 10:  # 忽略太短的行
+                            abstract_paragraphs.append(next_text)
+                            logger.debug(f"添加摘要内容: 第{j}段 ({len(next_text)}字符)")
+                        j += 1
+                    
+                    # 如果找到摘要内容，处理并计算字数
+                    if abstract_paragraphs:
+                        format_info["abstract"] = " ".join(abstract_paragraphs)
+                        format_info["abstract_paragraphs"] = abstract_paragraphs
+                        
+                        # 计算摘要的中文字数（而不是字符数）
+                        chinese_chars = sum(1 for c in format_info["abstract"] if '\u4e00' <= c <= '\u9fff')
+                        format_info["abstract_word_count"] = chinese_chars
+                        
+                        logger.debug(f"中文摘要总长度: {len(format_info['abstract'])}字符")
+                        logger.debug(f"中文摘要字数: {chinese_chars}字")
+                        
+                        # 如果字数明显偏少，记录警告
+                        if chinese_chars < 300:
+                            logger.warning(f"警告: 中文摘要仅有{chinese_chars}字，可能不符合要求(约600字)")
+                    else:
+                        logger.warning("找到摘要标题但未找到有效摘要内容")
+            
+            # 尝试识别英文摘要 - 增强识别能力
+            abstract_eng_pattern = re.compile(r'^[\s\u200b]*A[\s\u200b]*b[\s\u200b]*s[\s\u200b]*t[\s\u200b]*r[\s\u200b]*a[\s\u200b]*c[\s\u200b]*t[\s\u200b]*[:：]?$', re.IGNORECASE)
+            if abstract_eng_pattern.match(text) and len(text) < 30:
+                # 尝试获取下一段的内容作为英文摘要
+                for j in range(1, 5):  # 检查接下来的5个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if next_para and len(next_para) > 30 and re.match(r'^[A-Za-z\s,\.;"\'\(\)\-]+$', next_para[:30]):
+                            format_info["eng_abstract"] = next_para
+                            format_info["eng_abstract_length"] = len(next_para)
+                            break
+            
+            # 尝试识别关键词
+            keywords_pattern = re.compile(r'^关键[词字][\s:：]*(.+)$')
+            match = keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(1).strip()
+                # 处理不同的分隔符
+                if '；' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('；') if k.strip()]
+                elif ';' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif '，' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split('，') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["abstract_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 尝试识别英文关键词
+            eng_keywords_pattern = re.compile(r'^(Key\s*words|Keywords)[\s:：]*(.+)$', re.IGNORECASE)
+            match = eng_keywords_pattern.match(text)
+            if match:
+                keywords_text = match.group(2).strip()
+                # 处理不同的分隔符
+                if ';' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(';') if k.strip()]
+                elif ',' in keywords_text:
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                else:
+                    # 如果没有明确的分隔符，尝试识别空格分隔的关键词
+                    format_info["eng_keywords"] = [k.strip() for k in keywords_text.split() if k.strip()]
+            
+            # 检查目录 - 加强检测逻辑
+            toc_pattern = re.compile(r'^[\s\u200b]*目[\s\u200b]*录[\s\u200b]*$')
+            is_toc_title = (
+                toc_pattern.match(text) or 
+                text.strip() in ['目录', '目  录', '目   录', '目　录'] or
+                (text.startswith('目') and text.endswith('录') and len(text) < 10)
+            )
+            
+            if is_toc_title:
+                format_info["has_toc"] = True
+                format_info["toc_info"]["type"] = "中文目录"
+                format_info["toc_info"]["position"] = i
+                logger.debug(f"在第{i}段找到中文目录标题: '{text}'")
+                
+                # 收集目录内容示例
+                toc_items = []
+                for j in range(1, 30):  # 增加检查范围至30个段落
+                    if i + j < len(doc.paragraphs):
+                        next_para = doc.paragraphs[i + j].text.strip()
+                        if not next_para:
+                            continue  # 跳过空行
+                            
+                        # 如果遇到"Contents"或"致谢"等新章节标记，则认为目录结束
+                        if next_para.lower() in ['contents', 'abstract', '致谢', '参考文献', '附录'] or next_para.startswith('第一章'):
+                            logger.debug(f"在第{i+j}段遇到新章节标记'{next_para}'，中文目录结束")
+                            break
+                            
+                        # 检查是否是典型的目录项格式
+                        is_toc_item = (
+                            # 标题...页码 格式
+                            re.search(r'.*\.*\s*\d+$', next_para) or 
+                            # 章节标题格式
+                            re.search(r'^第[一二三四五六七八九十\d]+[章节]', next_para) or
+                            # 其他可能的目录项
+                            re.search(r'^[一二三四五六七八九十][、\s]', next_para) or
+                            re.search(r'^[0-9]+(\.[0-9]+)*\s', next_para)
+                        )
+                        
+                        if is_toc_item:
+                            toc_items.append(next_para)
+                            logger.debug(f"添加目录项: '{next_para[:30]}...'")
+                        elif len(toc_items) > 0 and not next_para.lower().startswith('contents'):
+                            # 可能是目录项的延续
+                            toc_items.append(next_para)
+                            logger.debug(f"添加可能的目录项延续: '{next_para[:30]}...'")
+                        elif len(toc_items) > 5:
+                            # 如果已经找到足够多的目录项，并遇到非目录内容，则停止
+                            break
+                
+                if toc_items:
+                    format_info["toc_info"]["items"] = toc_items[:15]  # 保存前15项作为示例
+                    format_info["toc_info"]["items_count"] = len(toc_items)
+                    logger.debug(f"找到{len(toc_items)}个中文目录项")
+                else:
+                    logger.warning("找到目录标题但未找到有效目录项")
             
             contents_pattern = re.compile(r'^[\s\u200b]*C[\s\u200b]*o[\s\u200b]*n[\s\u200b]*t[\s\u200b]*e[\s\u200b]*n[\s\u200b]*t[\s\u200b]*s[\s\u200b]*$', re.IGNORECASE)
             if contents_pattern.match(text) or text.strip().lower() == 'contents':
